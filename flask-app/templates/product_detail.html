@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Detalle del Producto - {{ product.name }}</title>
+</head>
+<body>
+    <header>
+        <h1>Bienvenido a FERREMAS</h1>
+        <nav>
+            <a href="{{ url_for('home') }}">Inicio</a>
+            {% if session.get('user') %}
+                <span>Bienvenido! {{ session.get('user') }}</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        <div class="product-detail-container">
+            <div class="product-image">
+                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}">
+            </div>
+            <div class="product-info">
+                <h2>{{ product.name }}</h2>
+                <p class="product-price">Precio: ${{ '%.2f' | format(product.price) }}</p>
+                <p class="product-description">Descripción del producto...</p>
+                <a href="{{ url_for('home') }}" class="back-button">Volver al inicio</a>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2023 eCommerce App</p>
+    </footer>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</body>
+</html>
