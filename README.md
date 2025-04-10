@@ -42,7 +42,7 @@ flask-app
 
 4. **Install the required packages**:
    ```
-   pip install Flask
+   pip install -r requirements.txt
    ```
 
 ## Running the Application
