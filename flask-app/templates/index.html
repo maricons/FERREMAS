@@ -21,14 +21,55 @@
         </nav>
     </header>
     <main>
+        {% if session.get('user') %}
+        <section class="admin-section">
+            <h2>Administración de Productos</h2>
+            <form id="productForm" class="admin-form">
+                <input type="hidden" id="productId">
+                <div class="form-group">
+                    <label for="name">Nombre del Producto:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="price">Precio:</label>
+                    <input type="number" id="price" name="price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="image">Imagen del Producto:</label>
+                    <input type="file" id="imageFile" name="imageFile" accept="image/*">
+                    <p class="form-text">O</p>
+                    <input type="text" id="imageUrl" name="imageUrl" placeholder="URL de la imagen">
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" id="submitBtn">Agregar Producto</button>
+                    <button type="button" id="cancelBtn" style="display: none;">Cancelar</button>
+                </div>
+            </form>
+        </section>
+        {% endif %}
+
         <section class="catalog-container">
             {% for product in products %}
             <div class="card">
-                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}">
+                {% if product.image %}
+                    {% if product.image.startswith('http') %}
+                        <img src="{{ product.image }}" alt="{{ product.name }}">
+                    {% else %}
+                        <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}">
+                    {% endif %}
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/no-image.png') }}" alt="No image available">
+                {% endif %}
                 <div class="card-body">
                     <h2 class="card-title">{{ product.name }}</h2>
                     <p class="card-price">${{ '%.2f' | format(product.price) }}</p>
                     <a href="{{ url_for('product_detail', product_id=product.id) }}" class="card-link">Ver más detalles</a>
+                    {% if session.get('user') %}
+                    <div class="admin-actions">
+                        <button onclick="editProduct('{{ product.id }}', '{{ product.name }}', '{{ product.price }}', '{{ product.image }}')" class="edit-btn">Editar</button>
+                        <button onclick="deleteProduct('{{ product.id }}')" class="delete-btn">Eliminar</button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -37,6 +78,66 @@
     <footer>
         <p>&copy; 2025 FERREMAS App</p>
     </footer>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    <script>
+        // Funciones para manejar productos
+        function editProduct(id, name, price, image) {
+            document.getElementById('productId').value = id;
+            document.getElementById('name').value = name;
+            document.getElementById('price').value = price;
+            document.getElementById('imageUrl').value = image;
+            document.getElementById('submitBtn').textContent = 'Actualizar Producto';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+        }
+
+        function deleteProduct(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+                fetch(`/api/products/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            }
+        }
+
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const productId = document.getElementById('productId').value;
+            const formData = new FormData();
+            
+            formData.append('name', document.getElementById('name').value);
+            formData.append('price', document.getElementById('price').value);
+            
+            const imageFile = document.getElementById('imageFile').files[0];
+            const imageUrl = document.getElementById('imageUrl').value;
+            
+            if (imageFile) {
+                formData.append('imageFile', imageFile);
+            } else if (imageUrl) {
+                formData.append('imageUrl', imageUrl);
+            }
+
+            const method = productId ? 'PUT' : 'POST';
+            const url = productId ? `/api/products/${productId}` : '/api/products';
+
+            fetch(url, {
+                method: method,
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.reload();
+            });
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            document.getElementById('submitBtn').textContent = 'Agregar Producto';
+            this.style.display = 'none';
+        });
+    </script>
 </body>
 </html>

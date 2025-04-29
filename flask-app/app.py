@@ -1,10 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from marshmallow import Schema, fields
+import os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # necessary for flash messages
 
+# Configuración para subida de archivos
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Asegurarse de que el directorio de uploads existe
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 #logica de la base de datos
 # Configure SQLite database
@@ -32,6 +45,15 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+# Esquema para serialización
+class ProductSchema(Schema):
+    id = fields.Int(dump_only=True)
+    name = fields.Str(required=True)
+    price = fields.Float(required=True)
+    image = fields.Str()
+
+product_schema = ProductSchema()
+products_schema = ProductSchema(many=True)
 
 # rutas
 # HOME
@@ -91,6 +113,77 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html')
+
+# Rutas de la API
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    products = Product.query.all()
+    return jsonify(products_schema.dump(products))
+
+@app.route('/api/products/<int:id>', methods=['GET'])
+def get_product(id):
+    product = Product.query.get_or_404(id)
+    return jsonify(product_schema.dump(product))
+
+@app.route('/api/products', methods=['POST'])
+def create_product():
+    name = request.form.get('name')
+    price = float(request.form.get('price'))
+    
+    # Manejar la imagen
+    image_path = ''
+    if 'imageFile' in request.files:
+        file = request.files['imageFile']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Asegurarse de que el directorio existe
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            image_path = f'uploads/{filename}'
+    elif 'imageUrl' in request.form and request.form.get('imageUrl'):
+        image_path = request.form.get('imageUrl')
+    
+    new_product = Product(
+        name=name,
+        price=price,
+        image=image_path
+    )
+    
+    db.session.add(new_product)
+    db.session.commit()
+    
+    return jsonify(product_schema.dump(new_product)), 201
+
+@app.route('/api/products/<int:id>', methods=['PUT'])
+def update_product(id):
+    product = Product.query.get_or_404(id)
+    
+    product.name = request.form.get('name', product.name)
+    product.price = float(request.form.get('price', product.price))
+    
+    # Manejar la imagen
+    if 'imageFile' in request.files:
+        file = request.files['imageFile']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Asegurarse de que el directorio existe
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            product.image = f'uploads/{filename}'
+    elif 'imageUrl' in request.form and request.form.get('imageUrl'):
+        product.image = request.form.get('imageUrl')
+    
+    db.session.commit()
+    return jsonify(product_schema.dump(product))
+
+@app.route('/api/products/<int:id>', methods=['DELETE'])
+def delete_product(id):
+    product = Product.query.get_or_404(id)
+    db.session.delete(product)
+    db.session.commit()
+    return '', 204
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':
