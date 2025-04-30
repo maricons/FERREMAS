@@ -4,9 +4,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from marshmallow import Schema, fields
 import os
 from werkzeug.utils import secure_filename
+from auth import auth_bp
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # necessary for flash messages
+app.secret_key = os.getenv("SECRET_KEY", "dev")
+
+# Registrar el blueprint de autenticación
+app.register_blueprint(auth_bp)
 
 # Configuración para subida de archivos
 UPLOAD_FOLDER = 'static/uploads'
@@ -59,8 +68,9 @@ products_schema = ProductSchema(many=True)
 # HOME
 @app.route('/')
 def home():
+    user = session.get("user")
     products = Product.query.all()  # retrieve all products
-    return render_template('index.html', products=products)
+    return render_template('index.html', products=products, user=user)
 
 # PRODUCT DETAIL
 @app.route('/product/<int:product_id>')

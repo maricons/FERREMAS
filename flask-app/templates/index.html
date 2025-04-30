@@ -12,7 +12,7 @@
         <nav>
             <a href="{{ url_for('home') }}">Inicio</a>
             {% if session.get('user') %}
-                <span>Bienvenido! {{ session.get('user') }}</span>
+                <span>Bienvenido: {{ session.get('user').name }}</span>
                 <a href="{{ url_for('logout') }}">Logout</a>
             {% else %}
                 <a href="{{ url_for('login') }}">Login</a>
