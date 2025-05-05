@@ -32,6 +32,9 @@ def allowed_file(filename):
 # Configure SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 horas
 
 db = SQLAlchemy(app)
 
@@ -54,6 +57,20 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+# Cart Item model
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    
+    # Relaciones
+    user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
+    product = db.relationship('Product', backref=db.backref('cart_items', lazy=True))
+    
+    def __repr__(self):
+        return f'<CartItem {self.product_id} ({self.quantity})>'
+
 # Esquema para serialización
 class ProductSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -61,14 +78,30 @@ class ProductSchema(Schema):
     price = fields.Float(required=True)
     image = fields.Str()
 
+class CartItemSchema(Schema):
+    id = fields.Int(dump_only=True)
+    user_id = fields.Int(required=True)
+    product_id = fields.Int(required=True)
+    quantity = fields.Int(required=True)
+    product = fields.Nested(ProductSchema)
+
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
+cart_item_schema = CartItemSchema()
+cart_items_schema = CartItemSchema(many=True)
 
 # rutas
 # HOME
 @app.route('/')
 def home():
-    user = session.get("user")
+    # Obtener información del usuario desde la sesión
+    user = None
+    if 'user' in session:
+        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
+            user = session['user']
+        else:  # Login normal
+            user = session.get('user')
+    
     products = Product.query.all()  # retrieve all products
     return render_template('index.html', products=products, user=user)
 
@@ -76,7 +109,29 @@ def home():
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
-    return render_template('product_detail.html', product=product)
+    
+    # Obtener información del usuario desde la sesión
+    user = None
+    if 'user' in session:
+        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
+            user = session['user']
+        else:  # Login normal
+            user = session.get('user')
+    
+    return render_template('product_detail.html', product=product, user=user)
+
+# CART
+@app.route('/carrito')
+def carrito():
+    # Obtener información del usuario desde la sesión
+    user = None
+    if 'user' in session:
+        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
+            user = session['user']
+        else:  # Login normal
+            user = session.get('user')
+    
+    return render_template('cart.html', user=user)
 
 #LOGIN
 @app.route('/login', methods=['GET', 'POST'])
@@ -87,6 +142,7 @@ def login():
          user = User.query.filter_by(username=username).first()
          if user and check_password_hash(user.password, password):
              session['user'] = user.username
+             session['user_id'] = user.id
              flash('Login successful!', 'success')
              return redirect(url_for('home'))
          else:
@@ -97,6 +153,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
+    session.pop('user_id', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('home'))
 
@@ -195,6 +252,130 @@ def delete_product(id):
     db.session.commit()
     return '', 204
 
+# API para el Carrito de Compras
+@app.route('/api/cart', methods=['GET'])
+def get_cart():
+    if not session.get('user_id'):
+        return jsonify({"error": "Usuario no autenticado"}), 401
+    
+    user_id = session.get('user_id')
+    cart_items = CartItem.query.filter_by(user_id=user_id).all()
+    
+    # Incluir información del producto en cada item del carrito
+    result = []
+    for item in cart_items:
+        item_data = cart_item_schema.dump(item)
+        product = Product.query.get(item.product_id)
+        item_data['product'] = product_schema.dump(product)
+        result.append(item_data)
+    
+    return jsonify(result)
+
+@app.route('/api/cart/add', methods=['POST'])
+def add_to_cart():
+    if not session.get('user_id'):
+        return jsonify({"error": "Usuario no autenticado"}), 401
+    
+    data = request.json
+    if not data or 'product_id' not in data:
+        return jsonify({"error": "Se requiere product_id"}), 400
+    
+    user_id = session.get('user_id')
+    product_id = data['product_id']
+    quantity = data.get('quantity', 1)
+    
+    # Verificar si el producto existe
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"error": "Producto no encontrado"}), 404
+    
+    # Verificar si el producto ya está en el carrito
+    cart_item = CartItem.query.filter_by(user_id=user_id, product_id=product_id).first()
+    
+    if cart_item:
+        # Actualizar cantidad si ya existe
+        cart_item.quantity += quantity
+    else:
+        # Crear nuevo item en el carrito
+        cart_item = CartItem(user_id=user_id, product_id=product_id, quantity=quantity)
+        db.session.add(cart_item)
+    
+    db.session.commit()
+    
+    # Incluir información del producto en la respuesta
+    item_data = cart_item_schema.dump(cart_item)
+    item_data['product'] = product_schema.dump(product)
+    
+    return jsonify(item_data), 201
+
+@app.route('/api/cart/update/<int:item_id>', methods=['PUT'])
+def update_cart_item(item_id):
+    if not session.get('user_id'):
+        return jsonify({"error": "Usuario no autenticado"}), 401
+    
+    data = request.json
+    if not data or 'quantity' not in data:
+        return jsonify({"error": "Se requiere quantity"}), 400
+    
+    user_id = session.get('user_id')
+    quantity = data['quantity']
+    
+    # Buscar el item en el carrito
+    cart_item = CartItem.query.filter_by(id=item_id, user_id=user_id).first()
+    if not cart_item:
+        return jsonify({"error": "Item no encontrado en el carrito"}), 404
+    
+    if quantity <= 0:
+        # Eliminar el item si la cantidad es 0 o negativa
+        db.session.delete(cart_item)
+        db.session.commit()
+        return '', 204
+    
+    # Actualizar la cantidad
+    cart_item.quantity = quantity
+    db.session.commit()
+    
+    # Incluir información del producto en la respuesta
+    product = Product.query.get(cart_item.product_id)
+    item_data = cart_item_schema.dump(cart_item)
+    item_data['product'] = product_schema.dump(product)
+    
+    return jsonify(item_data)
+
+@app.route('/api/cart/remove/<int:item_id>', methods=['DELETE'])
+def remove_from_cart(item_id):
+    if not session.get('user_id'):
+        return jsonify({"error": "Usuario no autenticado"}), 401
+    
+    user_id = session.get('user_id')
+    
+    # Buscar el item en el carrito
+    cart_item = CartItem.query.filter_by(id=item_id, user_id=user_id).first()
+    if not cart_item:
+        return jsonify({"error": "Item no encontrado en el carrito"}), 404
+    
+    # Eliminar el item
+    db.session.delete(cart_item)
+    db.session.commit()
+    
+    return '', 204
+
+@app.route('/api/cart/clear', methods=['DELETE'])
+def clear_cart():
+    if not session.get('user_id'):
+        return jsonify({"error": "Usuario no autenticado"}), 401
+    
+    user_id = session.get('user_id')
+    
+    # Eliminar todos los items del carrito para este usuario
+    CartItem.query.filter_by(user_id=user_id).delete()
+    db.session.commit()
+    
+    return '', 204
+
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':
+    # Crear las tablas si no existen
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

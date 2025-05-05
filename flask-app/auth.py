@@ -52,6 +52,11 @@ def google_logged_in(blueprint, token):
         "auth_type": "google"
     }
     
+    # Usar email como identificador único para OAuth users
+    # Esto es importante para el carrito
+    email_hash = hash(user_info["email"])
+    session["user_id"] = email_hash
+    
     flash('¡Inicio de sesión exitoso con Google!', 'success')
     return redirect(url_for("home"))
 
