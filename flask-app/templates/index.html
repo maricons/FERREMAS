@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,15 +13,18 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             height: 100%;
         }
+
         .product-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
+
         .product-img {
             height: 200px;
             object-fit: contain;
             padding: 10px;
         }
+
         .admin-form {
             background-color: #f8f9fa;
             padding: 20px;
@@ -29,11 +33,13 @@
         }
     </style>
 </head>
+
 <body>
     <nav class="navbar navbar-expand-lg navbar-ferremas">
         <div class="container">
             <a class="navbar-brand" href="/">Ferremas</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -53,10 +59,10 @@
                 </ul>
                 <div class="d-flex">
                     {% if user %}
-                        <a href="/logout" class="btn btn-outline-light me-2">Cerrar Sesión</a>
+                    <a href="/logout" class="btn btn-outline-light me-2">Cerrar Sesión</a>
                     {% else %}
-                        <a href="/login" class="btn btn-outline-light me-2">Iniciar Sesión</a>
-                        <a href="/register" class="btn btn-light">Registrarse</a>
+                    <a href="/login" class="btn btn-outline-light me-2">Iniciar Sesión</a>
+                    <a href="/register" class="btn btn-light">Registrarse</a>
                     {% endif %}
                 </div>
             </div>
@@ -64,24 +70,62 @@
     </nav>
 
     <div class="container py-5">
-        {% if user %}
         <div class="admin-form mb-5">
             <h2 class="mb-4">Administración de Productos</h2>
-            <form id="productForm">
+            <form id="productForm" enctype="multipart/form-data"> <!-- Añadido enctype para subida de archivos -->
                 <input type="hidden" id="productId">
+
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label for="name" class="form-label">Nombre del Producto</label>
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
                     <div class="col-md-6">
-                        <label for="price" class="form-label">Precio</label>
-                        <input type="number" class="form-control" id="price" name="price" step="0.01" required>
+                        <label for="product_code" class="form-label">Código del Producto (SKU)</label>
+                        <input type="text" class="form-control" id="product_code" name="product_code">
                     </div>
                 </div>
+
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="imageFile" class="form-label">Imagen del Producto</label>
+                        <label for="brand" class="form-label">Marca</label>
+                        <input type="text" class="form-control" id="brand" name="brand">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="price" class="form-label">Precio Actual</label>
+                        <!-- Cambiado de "Precio" a "Precio Actual" -->
+                        <input type="number" class="form-control" id="price" name="price" step="0.01" required min="0">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Descripción</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="category" class="form-label">Categoría</label>
+                        <select class="form-select" id="category" name="category_id">
+                            <option value="">Seleccione una categoría...</option>
+                            <!-- Las opciones de categoría se cargarán aquí dinámicamente o desde el backend -->
+                            {% for cat in categories %} {# Asume que pasas 'categories' desde tu ruta #}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="subcategory" class="form-label">Subcategoría</label>
+                        <select class="form-select" id="subcategory" name="subcategory_id" disabled>
+                            <option value="">Seleccione una subcategoría...</option>
+                            <!-- Las opciones de subcategoría se cargarán dinámicamente con JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="imageFile" class="form-label">Imagen del Producto (Archivo)</label>
                         <input type="file" class="form-control" id="imageFile" name="imageFile" accept="image/*">
                     </div>
                     <div class="col-md-6">
@@ -89,45 +133,50 @@
                         <input type="text" class="form-control" id="imageUrl" name="imageUrl">
                     </div>
                 </div>
+
                 <div class="d-flex gap-2">
                     <button type="submit" id="submitBtn" class="btn btn-primary">Agregar Producto</button>
-                    <button type="button" id="cancelBtn" class="btn btn-secondary" style="display: none;">Cancelar</button>
+                    <button type="button" id="cancelBtn" class="btn btn-secondary"
+                        style="display: none;">Cancelar</button>
                 </div>
             </form>
         </div>
-        {% endif %}
+        
 
         <h1 class="mb-4">Catálogo de Productos</h1>
-        
+
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for product in products %}
             <div class="col">
                 <div class="card product-card h-100">
                     {% if product.image %}
-                        {% if product.image.startswith('http') %}
-                            <img src="{{ product.image }}" class="card-img-top product-img" alt="{{ product.name }}">
-                        {% else %}
-                            <img src="{{ url_for('static', filename=product.image) }}" class="card-img-top product-img" alt="{{ product.name }}">
-                        {% endif %}
+                    {% if product.image.startswith('http') %}
+                    <img src="{{ product.image }}" class="card-img-top product-img" alt="{{ product.name }}">
                     {% else %}
-                        <img src="{{ url_for('static', filename='images/no-image.png') }}" class="card-img-top product-img" alt="No image available">
+                    <img src="{{ url_for('static', filename=product.image) }}" class="card-img-top product-img"
+                        alt="{{ product.name }}">
+                    {% endif %}
+                    {% else %}
+                    <img src="{{ url_for('static', filename='images/no-image.png') }}" class="card-img-top product-img"
+                        alt="No image available">
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ product.name }}</h5>
-                        <p class="card-text text-primary fw-bold">${{ '%.2f' | format(product.price) }}</p>
+                        <p class="card-text text-primary fw-bold">${{ '%.2f' | format(product.current_price) }}</p>
                     </div>
                     <div class="card-footer bg-white border-top-0">
                         <div class="d-grid gap-2">
-                            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-primary">Ver Detalles</a>
+                            <a href="{{ url_for('product_detail', product_id=product.id) }}"
+                                class="btn btn-outline-primary">Ver Detalles</a>
                             {% if user %}
-                                <div class="btn-group">
-                                    <button onclick="editProduct('{{ product.id }}', '{{ product.name }}', '{{ product.price }}', '{{ product.image }}')" class="btn btn-warning">
-                                        <i class="fas fa-edit me-1"></i>Editar
-                                    </button>
-                                    <button onclick="deleteProduct('{{ product.id }}')" class="btn btn-danger">
-                                        <i class="fas fa-trash me-1"></i>Eliminar
-                                    </button>
-                                </div>
+                            <div class="btn-group">
+                                <button onclick="editProduct('{{ product.id }}')" class="btn btn-warning">
+                                    <i class="fas fa-edit me-1"></i>Editar
+                                </button>
+                                <button onclick="deleteProduct('{{ product.id }}')" class="btn btn-danger">
+                                    <i class="fas fa-trash me-1"></i>Eliminar
+                                </button>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -150,17 +199,101 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
     <script>
-        // Funciones para manejar productos
-        function editProduct(id, name, price, image) {
-            document.getElementById('productId').value = id;
-            document.getElementById('name').value = name;
-            document.getElementById('price').value = price;
-            document.getElementById('imageUrl').value = image;
-            document.getElementById('submitBtn').textContent = 'Actualizar Producto';
-            document.getElementById('cancelBtn').style.display = 'inline-block';
-            
-            // Hacer scroll hacia el formulario
-            document.querySelector('.admin-form').scrollIntoView({ behavior: 'smooth' });
+        const productForm = document.getElementById('productForm');
+        const productIdInput = document.getElementById('productId');
+        const nameInput = document.getElementById('name');
+        const productCodeInput = document.getElementById('product_code'); // Nuevo
+        const brandInput = document.getElementById('brand');           // Nuevo
+        const priceInput = document.getElementById('price');
+        const descriptionInput = document.getElementById('description'); // Nuevo
+        const categorySelect = document.getElementById('category');       // Nuevo
+        const subcategorySelect = document.getElementById('subcategory'); // Nuevo
+        const imageFileInput = document.getElementById('imageFile');
+        const imageUrlInput = document.getElementById('imageUrl');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // --- Lógica para cargar subcategorías ---
+        async function fetchSubcategories(categoryId) {
+            subcategorySelect.innerHTML = '<option value="">Cargando subcategorías...</option>';
+            subcategorySelect.disabled = true;
+            if (!categoryId) {
+                subcategorySelect.innerHTML = '<option value="">Seleccione una categoría primero...</option>';
+                return;
+            }
+            try {
+                // Necesitarás una nueva ruta API para esto, por ejemplo: /api/categories/<int:category_id>/subcategories
+                const response = await fetch(`/api/categories/${categoryId}/subcategories`);
+                if (!response.ok) {
+                    throw new Error('No se pudieron cargar las subcategorías');
+                }
+                const subcategories = await response.json();
+
+                subcategorySelect.innerHTML = '<option value="">Seleccione una subcategoría...</option>';
+                if (subcategories.length > 0) {
+                    subcategories.forEach(subcat => {
+                        const option = document.createElement('option');
+                        option.value = subcat.id;
+                        option.textContent = subcat.name;
+                        subcategorySelect.appendChild(option);
+                    });
+                    subcategorySelect.disabled = false;
+                } else {
+                    subcategorySelect.innerHTML = '<option value="">No hay subcategorías para esta categoría</option>';
+                }
+            } catch (error) {
+                console.error("Error fetching subcategories:", error);
+                subcategorySelect.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        }
+
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function () {
+                const selectedCategoryId = this.value;
+                fetchSubcategories(selectedCategoryId);
+            });
+        }
+
+        // --- Funciones para manejar productos (actualizadas) ---
+        async function editProduct(productIdToEdit) { // Modificado para tomar solo el ID
+            // Necesitarás una ruta API para obtener los detalles de un producto específico
+            // que incluya su categoría y subcategoría ID.
+            try {
+                const response = await fetch(`/api/products/${productIdToEdit}`);
+                if (!response.ok) throw new Error('Producto no encontrado');
+                const product = await response.json();
+
+                productIdInput.value = product.id;
+                nameInput.value = product.name;
+                productCodeInput.value = product.product_code || '';
+                brandInput.value = product.brand || '';
+                priceInput.value = product.current_price; // Usar current_price del modelo
+                descriptionInput.value = product.description || '';
+
+                if (product.category) {
+                    categorySelect.value = product.category.id;
+                    // Disparar el evento change para cargar subcategorías y luego seleccionar la subcategoría
+                    await fetchSubcategories(product.category.id); // Esperar a que se carguen
+                    if (product.subcategory) {
+                        subcategorySelect.value = product.subcategory.id;
+                    }
+                } else {
+                    categorySelect.value = '';
+                    subcategorySelect.innerHTML = '<option value="">Seleccione una categoría primero...</option>';
+                    subcategorySelect.disabled = true;
+                }
+
+                imageUrlInput.value = product.image || ''; // Asumimos que imageUrl es para el string de la imagen
+                imageFileInput.value = ''; // Limpiar el input de archivo
+
+                submitBtn.textContent = 'Actualizar Producto';
+                cancelBtn.style.display = 'inline-block';
+                document.querySelector('.admin-form').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error("Error al cargar producto para editar:", error);
+                alert("No se pudo cargar el producto para editar.");
+            }
         }
 
         function deleteProduct(id) {
@@ -168,50 +301,90 @@
                 fetch(`/api/products/${id}`, {
                     method: 'DELETE'
                 })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
+                    .then(response => {
+                        if (response.ok) {
+                            // alert('Producto eliminado'); // Opcional
+                            window.location.reload();
+                        } else {
+                            alert('Error al eliminar el producto');
+                        }
+                    });
             }
         }
 
-        document.getElementById('productForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const productId = document.getElementById('productId').value;
-            const formData = new FormData();
-            
-            formData.append('name', document.getElementById('name').value);
-            formData.append('price', document.getElementById('price').value);
-            
-            const imageFile = document.getElementById('imageFile').files[0];
-            const imageUrl = document.getElementById('imageUrl').value;
-            
-            if (imageFile) {
-                formData.append('imageFile', imageFile);
-            } else if (imageUrl) {
-                formData.append('imageUrl', imageUrl);
-            }
+        if (productForm) {
+            productForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const productId = productIdInput.value;
+                const formData = new FormData(); // FormData es ideal para archivos y otros campos
 
-            const method = productId ? 'PUT' : 'POST';
-            const url = productId ? `/api/products/${productId}` : '/api/products';
+                formData.append('name', nameInput.value);
+                formData.append('product_code', productCodeInput.value);
+                formData.append('brand', brandInput.value);
+                formData.append('price', priceInput.value); // Se enviará como 'price', el backend lo mapeará a current_price
+                formData.append('description', descriptionInput.value);
 
-            fetch(url, {
-                method: method,
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                window.location.reload();
+                if (categorySelect.value) {
+                    formData.append('category_id', categorySelect.value);
+                }
+                if (subcategorySelect.value && !subcategorySelect.disabled) {
+                    formData.append('subcategory_id', subcategorySelect.value);
+                }
+
+                const imageFile = imageFileInput.files[0];
+                const imageUrl = imageUrlInput.value;
+
+                if (imageFile) {
+                    formData.append('imageFile', imageFile);
+                } else if (imageUrl) { // Solo enviar imageUrl si no hay imageFile
+                    formData.append('imageUrl', imageUrl);
+                }
+
+                const method = productId ? 'PUT' : 'POST';
+                const url = productId ? `/api/products/${productId}` : '/api/products';
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = productId ? '<i class="fas fa-spinner fa-spin"></i> Actualizando...' : '<i class="fas fa-spinner fa-spin"></i> Agregando...';
+
+                fetch(url, {
+                    method: method,
+                    body: formData // No se necesita 'Content-Type' header con FormData, el navegador lo pone.
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw err; }); // Lanza el error para el catch
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // alert(productId ? 'Producto actualizado!' : 'Producto agregado!'); // Opcional
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al guardar el producto: ' + (error.message || JSON.stringify(error)));
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        resetForm(); // Limpiar y resetear botón después de la operación
+                    });
             });
-        });
+        }
 
-        document.getElementById('cancelBtn').addEventListener('click', function() {
-            document.getElementById('productForm').reset();
-            document.getElementById('productId').value = '';
-            document.getElementById('submitBtn').textContent = 'Agregar Producto';
-            this.style.display = 'none';
-        });
+        function resetForm() {
+            productForm.reset(); // Resetea los campos del formulario
+            productIdInput.value = '';
+            submitBtn.textContent = 'Agregar Producto';
+            submitBtn.innerHTML = 'Agregar Producto'; // Restaurar texto original
+            cancelBtn.style.display = 'none';
+            subcategorySelect.innerHTML = '<option value="">Seleccione una categoría primero...</option>';
+            subcategorySelect.disabled = true;
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', resetForm);
+        }
     </script>
 </body>
+
 </html>
