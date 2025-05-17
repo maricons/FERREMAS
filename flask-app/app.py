@@ -648,7 +648,7 @@ def iniciar_pago_webpay():
     for item in cart_items:
         product = db.session.get(Product, item.product_id)
         if product:
-            total_amount += product.price * item.quantity
+            total_amount += product.current_price * item.quantity
 
     if total_amount <= 0:
         flash('El monto del carrito no es válido.', 'danger')

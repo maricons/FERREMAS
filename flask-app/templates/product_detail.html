@@ -92,8 +92,7 @@
                 <h2 class="mb-3">{{ product.name }}</h2>
                 <p class="fs-4 fw-bold text-primary">${{ '%.2f' | format(product.current_price) }}</p>
                 <hr>
-                <p class="mb-4">Descripción detallada del producto. Características, especificaciones y usos
-                    recomendados.</p>
+                <p class="mb-4">{{ product.description }}</p>
 
                 <div class="quantity-control">
                     <button id="decrease-quantity"><i class="fas fa-minus"></i></button>
