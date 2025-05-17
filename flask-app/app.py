@@ -6,6 +6,14 @@ import os
 from werkzeug.utils import secure_filename
 from auth import auth_bp
 from dotenv import load_dotenv
+from transbank.webpay.webpay_plus.transaction import Transaction
+from transbank.common.options import WebpayOptions
+from transbank.common.integration_commerce_codes import IntegrationCommerceCodes
+from transbank.common.integration_api_keys import IntegrationApiKeys
+from transbank.common.integration_type import IntegrationType
+import uuid
+
+
 
 # Cargar variables de entorno
 load_dotenv()
@@ -21,6 +29,17 @@ app.register_blueprint(auth_bp)
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+WEBPAY_PLUS_COMMERCE_CODE = os.getenv("WEBPAY_PLUS_COMMERCE_CODE", IntegrationCommerceCodes.WEBPAY_PLUS)
+WEBPAY_PLUS_API_KEY = os.getenv("WEBPAY_PLUS_API_KEY", IntegrationApiKeys.WEBPAY)
+WEBPAY_PLUS_ENVIRONMENT_STR = os.getenv("WEBPAY_PLUS_ENVIRONMENT", "INTEGRATION").upper() # O IntegrationType.PRODUCTION
+
+if WEBPAY_PLUS_ENVIRONMENT_STR == "PRODUCTION":
+    options = WebpayOptions(WEBPAY_PLUS_COMMERCE_CODE, WEBPAY_PLUS_API_KEY, IntegrationType.LIVE) # CORRECTO para v6.0.0
+else: # Por defecto, o si es "INTEGRATION"
+    options = WebpayOptions(WEBPAY_PLUS_COMMERCE_CODE, WEBPAY_PLUS_API_KEY, IntegrationType.TEST) 
+
+tx = Transaction(options)
 
 # Asegurarse de que el directorio de uploads existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -372,6 +391,207 @@ def clear_cart():
     db.session.commit()
     
     return '', 204
+#RUTAS  DE PAGO
+
+@app.route('/iniciar_pago_webpay', methods=['POST'])
+def iniciar_pago_webpay():
+    # ... (código de validación de usuario, carrito, cálculo de monto) ...
+    if 'user_id' not in session:
+        flash('Debes iniciar sesión para pagar.', 'warning')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    cart_items = CartItem.query.filter_by(user_id=user_id).all()
+
+    if not cart_items:
+        flash('Tu carrito está vacío.', 'info')
+        return redirect(url_for('carrito'))
+
+    total_amount = 0
+    for item in cart_items:
+        product = db.session.get(Product, item.product_id)
+        if product:
+            total_amount += product.price * item.quantity
+
+    if total_amount <= 0:
+        flash('El monto del carrito no es válido.', 'danger')
+        return redirect(url_for('carrito'))
+
+    buy_order = uuid.uuid4().hex[:26]
+    session_id = str(session['user_id']) 
+    amount = int(round(total_amount))
+    return_url = url_for('retorno_webpay', _external=True)
+
+    try:
+        response_data = tx.create(buy_order, session_id, amount, return_url) # Renombrado a response_data
+        
+        app.logger.info(f"Respuesta de tx.create: {response_data}")
+        app.logger.info(f"Tipo de respuesta de tx.create: {type(response_data)}")
+
+        # Verificar si la respuesta es un diccionario y contiene las claves necesarias
+        if isinstance(response_data, dict) and 'url' in response_data and 'token' in response_data:
+            transbank_url = response_data['url']
+            transbank_token = response_data['token']
+            
+            session['webpay_buy_order'] = buy_order
+            # session['webpay_session_id'] = session_id # Ya no lo guardábamos así
+            session['webpay_transbank_token'] = transbank_token # Guardar el token correcto
+
+            app.logger.info(f"Transacción creada exitosamente. Redirigiendo a: {transbank_url} con token: {transbank_token}")
+            return render_template('webpay_redirect.html', url=transbank_url, token=transbank_token)
+        
+        # Si no es un dict con url y token, o si es otro tipo de objeto que SÍ tiene atributos .url y .token (poco probable ahora)
+        elif hasattr(response_data, 'url') and hasattr(response_data, 'token'):
+            # Esto es para el caso en que SÍ fuera un objeto como se esperaba originalmente
+            app.logger.info("Respuesta de tx.create es un objeto con atributos .url y .token.")
+            session['webpay_buy_order'] = buy_order
+            session['webpay_transbank_token'] = response_data.token
+
+            return render_template('webpay_redirect.html', url=response_data.url, token=response_data.token)
+        
+        else:
+            # Si no es ninguna de las anteriores, es un error inesperado
+            error_message = "Respuesta inesperada de Transbank al crear la transacción."
+            if isinstance(response_data, dict):
+                error_message = response_data.get('error_message', str(response_data))
+            
+            app.logger.error(f"Formato de respuesta de Transbank no reconocido: {response_data}")
+            raise Exception(f"Error Transbank: {error_message}")
+
+    except Exception as e:
+        app.logger.error(f"Error al procesar creación de transacción Webpay: {e}", exc_info=True) # exc_info=True para más detalle del traceback
+        flash(f'Error al iniciar el pago con Webpay: {str(e)}', 'danger')
+        return redirect(url_for('carrito'))
+
+
+@app.route('/retorno_webpay', methods=['GET', 'POST'])
+def retorno_webpay():
+    token_ws = request.form.get('token_ws') or request.args.get('token_ws')
+    
+    tbk_token_cancel = request.form.get("TBK_TOKEN") or request.args.get("TBK_TOKEN")
+    tbk_orden_compra_cancel = request.form.get("TBK_ORDEN_COMPRA") or request.args.get("TBK_ORDEN_COMPRA")
+    tbk_id_sesion_cancel = request.form.get("TBK_ID_SESION") or request.args.get("TBK_ID_SESION")
+
+    original_buy_order_from_session = session.get('webpay_buy_order')
+
+    # 1. Manejo de Cancelación por parte del usuario en la plataforma de Webpay
+    if tbk_token_cancel and not token_ws:
+        app.logger.warning(f"Webpay: Usuario canceló antes de pagar (TBK_TOKEN: {tbk_token_cancel}). Orden original: {original_buy_order_from_session}")
+        flash('Pago cancelado por el usuario en Webpay.', 'warning')
+        session.pop('webpay_buy_order', None)
+        session.pop('webpay_transbank_token', None)
+        return redirect(url_for('pago_fallido', reason='cancelado_antes_de_pago_tbk', buy_order=original_buy_order_from_session or "Desconocida"))
+
+    if tbk_orden_compra_cancel and tbk_id_sesion_cancel and not token_ws:
+        app.logger.warning(f"Webpay: Pago interrumpido o cancelado (TBK_ORDEN_COMPRA: {tbk_orden_compra_cancel}). Orden original: {original_buy_order_from_session}")
+        if original_buy_order_from_session and tbk_orden_compra_cancel != original_buy_order_from_session:
+            app.logger.error(f"Discrepancia en buy_order en cancelación. Sesión: {original_buy_order_from_session}, Recibido de TBK: {tbk_orden_compra_cancel}")
+            flash('Error en los datos de retorno de Webpay durante la cancelación.', 'danger')
+            return redirect(url_for('pago_fallido', reason='error_datos_retorno_cancelacion_tbk', buy_order=tbk_orden_compra_cancel))
+        
+        flash('Pago cancelado o interrumpido por el usuario en Webpay.', 'warning')
+        session.pop('webpay_buy_order', None)
+        session.pop('webpay_transbank_token', None)
+        return redirect(url_for('pago_fallido', reason='cancelado_o_interrumpido_tbk', buy_order=tbk_orden_compra_cancel))
+
+    # 2. Flujo normal de Commit: se debe recibir token_ws
+    if not token_ws:
+        app.logger.warning(f"Retorno de Webpay sin token_ws (y no es cancelación TBK). Orden original: {original_buy_order_from_session}. Data: {request.form or request.args}")
+        flash('Error: No se pudo completar el proceso de pago. Intenta nuevamente.', 'danger')
+        session.pop('webpay_buy_order', None)
+        session.pop('webpay_transbank_token', None)
+        return redirect(url_for('pago_fallido', reason='sin_token_ws_commit', buy_order=original_buy_order_from_session or "Desconocida"))
+
+    # 3. Intentar el Commit de la transacción
+    try:
+        app.logger.info(f"Intentando commit de Webpay con token_ws: {token_ws} para orden original en sesión: {original_buy_order_from_session}")
+        response_data = tx.commit(token_ws)
+        app.logger.info(f"Respuesta de tx.commit: {response_data}")
+
+        if not isinstance(response_data, dict):
+            app.logger.error(f"Respuesta de tx.commit no es un diccionario: {type(response_data)}. Contenido: {response_data}")
+            raise Exception("Formato de respuesta de Transbank inesperado tras commit.")
+
+        status = response_data.get('status')
+        response_buy_order = response_data.get('buy_order')
+        response_amount = response_data.get('amount')
+        card_number_last_digits = response_data.get('card_detail', {}).get('card_number', '****')
+        authorization_code = response_data.get('authorization_code')
+        payment_type_code = response_data.get('payment_type_code')
+        response_code = response_data.get('response_code')
+
+        if not original_buy_order_from_session or response_buy_order != original_buy_order_from_session:
+            app.logger.error(f"CRÍTICO: Discrepancia de buy_order tras commit. Sesión: {original_buy_order_from_session}, Respuesta TBK: {response_buy_order}. Token_ws: {token_ws}")
+            flash('Error de seguridad crítico en la transacción. Contacte a soporte.', 'danger')
+            return redirect(url_for('pago_fallido', reason='error_seguridad_buy_order_commit', buy_order=response_buy_order or original_buy_order_from_session))
+        
+        if status == 'AUTHORIZED' and response_code == 0:
+            flash(f'¡Pago Aprobado! Gracias por tu compra. Orden: {response_buy_order}', 'success')
+            app.logger.info(f"Pago APROBADO. Orden: {response_buy_order}, Monto: {response_amount}, Tarjeta: ****{card_number_last_digits[-4:]}, AuthCode: {authorization_code}, PaymentType: {payment_type_code}")
+
+            # --- LÓGICA DE POST-PAGO EXITOSO ---
+            # 1. Guardar en BBDD (Aquí necesitarás tu modelo `Order` si lo tienes)
+            # Por ahora, solo logueamos que se debería guardar.
+            app.logger.info(f"Simulando guardado de orden {response_buy_order} como PAGADA en BBDD.")
+            # Ejemplo si tuvieras un modelo Order:
+            # order = Order.query.filter_by(buy_order=response_buy_order).first()
+            # if order:
+            #     order.status = "PAGADO"
+            #     order.transbank_authorization_code = authorization_code
+            #     # ... otros campos ...
+            #     db.session.commit()
+            # else:
+            #     app.logger.error(f"Orden {response_buy_order} no encontrada en BBDD para marcar como pagada.")
+
+            # 2. Vaciar el carrito del usuario
+            user_id = session.get('user_id')
+            if user_id:
+                CartItem.query.filter_by(user_id=user_id).delete()
+                db.session.commit()
+                app.logger.info(f"Carrito vaciado para usuario {user_id} tras pago de orden {response_buy_order}")
+            
+            # 3. Limpiar datos de Webpay de la sesión
+            session.pop('webpay_buy_order', None)
+            session.pop('webpay_transbank_token', None)
+
+            return redirect(url_for('pago_exitoso', buy_order=response_buy_order, amount=response_amount))
+        
+        else:
+            flash(f'Pago Rechazado o Fallido. Orden: {response_buy_order}. Estado: {status}. Código: {response_code}', 'warning')
+            app.logger.warning(f"Pago RECHAZADO/FALLIDO. Orden: {response_buy_order}, Estado TBK: {status}, Código Respuesta TBK: {response_code}. Respuesta: {response_data}")
+            
+            session.pop('webpay_buy_order', None)
+            session.pop('webpay_transbank_token', None)
+            
+            return redirect(url_for('pago_fallido', reason=f"estado_{status}_codigo_{response_code}", buy_order=response_buy_order))
+
+    except Exception as e:
+        buy_order_on_error = session.get('webpay_buy_order', 'desconocida_en_excepcion_commit')
+        app.logger.error(f"Excepción crítica durante el commit o procesamiento para orden {buy_order_on_error} con token_ws {token_ws}: {e}", exc_info=True)
+        flash('Ocurrió un error inesperado al finalizar tu pago. Contacte a soporte.', 'danger')
+        
+        session.pop('webpay_buy_order', None)
+        session.pop('webpay_transbank_token', None)
+        
+        return redirect(url_for('pago_fallido', reason='excepcion_critica_commit', buy_order=buy_order_on_error))
+
+@app.route('/pago_exitoso')
+def pago_exitoso():
+    buy_order = request.args.get('buy_order')
+    amount = request.args.get('amount')
+    # Para obtener el nombre de usuario, si 'user' en sesión es el username:
+    user_display_name = session.get('user', 'Cliente') # 'Cliente' como fallback
+    # Si 'user' en sesión es un objeto/dict con más info, ajusta cómo obtienes el nombre.
+    return render_template('pago_exitoso.html', user=user_display_name, buy_order=buy_order, amount=amount)
+
+@app.route('/pago_fallido')
+def pago_fallido():
+    reason = request.args.get('reason')
+    buy_order = request.args.get('buy_order')
+    user_display_name = session.get('user', 'Cliente')
+    return render_template('pago_fallido.html', user=user_display_name, reason=reason, buy_order=buy_order)
+
+
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':

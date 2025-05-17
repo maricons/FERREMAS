@@ -53,7 +53,7 @@
             border-color: var(--secondary-color);
         }
         .btn-success {
-            background-color: var(--primary-color);
+            background-color: var(--primary-color); /* Considera si quieres un color diferente para "Pagar" */
             border-color: var(--primary-color);
         }
         .btn-success:hover {
@@ -133,7 +133,13 @@
                             <strong>Total:</strong>
                             <strong id="cart-total">$0.00</strong>
                         </div>
-                        <button class="btn btn-success w-100" id="checkout-btn" disabled>Proceder al Pago</button>
+                        
+                        <!-- ****** MODIFICACIÓN AQUÍ ****** -->
+                        <form action="{{ url_for('iniciar_pago_webpay') }}" method="POST" id="webpay-checkout-form">
+                            <button type="submit" class="btn btn-success w-100" id="checkout-btn" disabled>Pagar con Webpay</button>
+                        </form>
+                        <!-- ****** FIN DE LA MODIFICACIÓN ****** -->
+
                     </div>
                 </div>
             </div>
@@ -147,4 +153,4 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
 </body>
-</html> 
+</html>

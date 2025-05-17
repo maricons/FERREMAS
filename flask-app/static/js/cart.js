@@ -2,30 +2,38 @@
  * Funciones para el carrito de compras de Ferremas
  */
 
-// Controlador para la cantidad
-function setupQuantityControls() {
+// Función helper para formatear moneda
+function formatCurrency(amount) {
+    return `$${amount.toFixed(2)}`;
+}
+
+// Controlador para la cantidad en la página de detalle del producto
+function setupQuantityControlsProductDetail() {
     const quantityInput = document.getElementById('quantity');
-    if (!quantityInput) return;
+    if (!quantityInput) return; // Solo en página de detalle
     
     const decreaseBtn = document.getElementById('decrease-quantity');
     const increaseBtn = document.getElementById('increase-quantity');
     
-    decreaseBtn.addEventListener('click', function() {
-        let currentValue = parseInt(quantityInput.value);
-        if (currentValue > 1) {
-            quantityInput.value = currentValue - 1;
-        }
-    });
+    if (decreaseBtn) {
+        decreaseBtn.addEventListener('click', function() {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 1) {
+                quantityInput.value = currentValue - 1;
+            }
+        });
+    }
     
-    increaseBtn.addEventListener('click', function() {
-        let currentValue = parseInt(quantityInput.value);
-        if (currentValue < 99) {
-            quantityInput.value = currentValue + 1;
-        }
-    });
+    if (increaseBtn) {
+        increaseBtn.addEventListener('click', function() {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue < 99) { // Límite máximo de cantidad
+                quantityInput.value = currentValue + 1;
+            }
+        });
+    }
     
-    // Validar entrada manual
-    quantityInput.addEventListener('change', function() {
+    quantityInput.addEventListener('input', function() { // 'input' es mejor que 'change' para validación en tiempo real
         let currentValue = parseInt(quantityInput.value);
         if (isNaN(currentValue) || currentValue < 1) {
             quantityInput.value = 1;
@@ -35,24 +43,34 @@ function setupQuantityControls() {
     });
 }
 
-// Añadir al carrito
-async function addToCart() {
+// Añadir al carrito desde la página de detalle del producto
+async function addToCartFromDetail() {
     const addToCartBtn = document.getElementById('add-to-cart-btn');
-    if (!addToCartBtn) return;
-    
+    if (!addToCartBtn) return; // Solo en página de detalle
+
     const addResult = document.getElementById('add-result');
     const isLoggedIn = document.getElementById('user-status').value === 'true';
-    const productId = parseInt(document.getElementById('product-id').value);
+    const productIdInput = document.getElementById('product-id');
     const quantityInput = document.getElementById('quantity');
+
+    if (!productIdInput || !quantityInput) {
+        console.error("Faltan elementos product-id o quantity en la página de detalle.");
+        return;
+    }
+    const productId = parseInt(productIdInput.value);
     
     addToCartBtn.addEventListener('click', async function() {
         if (!isLoggedIn) {
-            addResult.innerHTML = '<div class="alert alert-warning">Debes <a href="/login">iniciar sesión</a> para añadir productos al carrito.</div>';
+            if (addResult) addResult.innerHTML = '<div class="alert alert-warning">Debes <a href="/login">iniciar sesión</a> para añadir productos al carrito.</div>';
+            // Opcionalmente, redirigir a login: window.location.href = '/login';
             return;
         }
         
         const quantity = parseInt(quantityInput.value);
         
+        addToCartBtn.disabled = true;
+        addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Añadiendo...';
+
         try {
             const response = await fetch('/api/cart/add', {
                 method: 'POST',
@@ -66,84 +84,83 @@ async function addToCart() {
             });
             
             if (!response.ok) {
-                throw new Error('Error al añadir al carrito');
+                const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+                throw new Error(errorData.error || 'Error al añadir al carrito');
             }
             
             const result = await response.json();
             
-            addResult.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Producto añadido al carrito correctamente. <a href="/carrito" class="alert-link ms-2">Ver carrito</a></div>';
+            if (addResult) addResult.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Producto añadido correctamente. <a href="/carrito" class="alert-link ms-2">Ver carrito (${result.quantity} en total)</a></div>`;
             
-            // Actualizar contador del carrito
-            await updateCartCount();
+            await updateCartCount(); // Actualizar contador global del carrito
+
         } catch (error) {
-            console.error('Error:', error);
-            addResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Ha ocurrido un error al añadir el producto al carrito.</div>';
+            console.error('Error al añadir al carrito:', error);
+            if (addResult) addResult.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Error: ${error.message}</div>`;
+        } finally {
+            addToCartBtn.disabled = false;
+            addToCartBtn.innerHTML = '<i class="fas fa-cart-plus me-2"></i>Añadir al Carrito';
         }
     });
 }
 
-// Cargar el carrito completo
-async function loadCart() {
+// Cargar el carrito completo en la página del carrito
+async function loadCartPage() {
+    const cartItemsContainer = document.getElementById('cart-items');
+    const isLoggedIn = document.getElementById('user-status').value === 'true';
+
+    if (!cartItemsContainer) return; // Solo ejecutar en la página del carrito
+
+    if (!isLoggedIn) {
+        // No se muestra el contenedor del carrito si no está logueado, el HTML ya lo maneja.
+        // Solo aseguramos que el botón de pago esté deshabilitado.
+        const checkoutBtn = document.getElementById('checkout-btn');
+        if (checkoutBtn) checkoutBtn.disabled = true;
+        updateCartTotals(0,0,0); // Mostrar totales en cero
+        return;
+    }
+
     try {
         const response = await fetch('/api/cart');
         
-        // Si la respuesta no es exitosa (ej. no autenticado), mostrar carrito vacío
         if (!response.ok) {
-            if (document.getElementById('cart-items')) {
-                const emptyCartMessage = document.getElementById('empty-cart-message');
-                const checkoutBtn = document.getElementById('checkout-btn');
-                
-                if (emptyCartMessage) {
-                    emptyCartMessage.style.display = 'block';
-                }
-                if (checkoutBtn) {
-                    checkoutBtn.disabled = true;
-                }
-                
-                updateCartTotals(0, 0, 0);
-            }
-            return [];
+            // Podría ser un 401 si la sesión expiró entre la carga de la página y esta llamada.
+            // O cualquier otro error del servidor.
+            console.error('Error al cargar el carrito:', response.status);
+            updateCartUI([]); // Mostrar carrito vacío en caso de error
+            return;
         }
         
         const cartItems = await response.json();
+        updateCartUI(cartItems);
         
-        // Actualizar la UI solo si estamos en la página del carrito
-        if (document.getElementById('cart-items')) {
-            updateCartUI(cartItems);
-        }
-        
-        return cartItems;
     } catch (error) {
-        console.error('Error:', error);
-        return [];
+        console.error('Error de red o parseo al cargar el carrito:', error);
+        updateCartUI([]); // Mostrar carrito vacío en caso de error
     }
 }
 
-// Actualizar la interfaz del carrito
+// Actualizar la interfaz del carrito (lista de items y totales)
 function updateCartUI(cartItems) {
     const cartItemsContainer = document.getElementById('cart-items');
     if (!cartItemsContainer) return;
     
     const emptyCartMessage = document.getElementById('empty-cart-message');
     const checkoutBtn = document.getElementById('checkout-btn');
-    
-    if (cartItems.length === 0) {
-        if (emptyCartMessage) {
-            emptyCartMessage.style.display = 'block';
-        }
-        if (checkoutBtn) {
-            checkoutBtn.disabled = true;
-        }
+    const webpayCheckoutForm = document.getElementById('webpay-checkout-form'); // El formulario de Webpay
+
+    if (!cartItems || cartItems.length === 0) {
+        cartItemsContainer.innerHTML = ''; // Limpiar items existentes si los hubiera
+        if (emptyCartMessage) emptyCartMessage.style.display = 'block';
+        if (checkoutBtn) checkoutBtn.disabled = true;
+        if (webpayCheckoutForm) webpayCheckoutForm.style.display = 'none'; // Ocultar formulario si no hay items
         updateCartTotals(0, 0, 0);
         return;
     }
     
-    if (emptyCartMessage) {
-        emptyCartMessage.style.display = 'none';
-    }
-    if (checkoutBtn) {
-        checkoutBtn.disabled = false;
-    }
+    if (emptyCartMessage) emptyCartMessage.style.display = 'none';
+    if (checkoutBtn) checkoutBtn.disabled = false;
+    if (webpayCheckoutForm) webpayCheckoutForm.style.display = 'block'; // Mostrar formulario
     
     let cartHTML = '';
     let subtotal = 0;
@@ -152,39 +169,31 @@ function updateCartUI(cartItems) {
         const itemTotal = item.quantity * item.product.price;
         subtotal += itemTotal;
         
-        // Preparar la URL de la imagen correctamente
-        let imgSrc;
-        if (item.product.image.startsWith('http')) {
-            // URL externa, no añadir prefijo
-            imgSrc = item.product.image;
-        } else {
-            // Imagen local, añadir prefijo /static/
-            imgSrc = `/static/${item.product.image}`;
-        }
+        let imgSrc = item.product.image.startsWith('http') ? item.product.image : `/static/${item.product.image}`;
         
         cartHTML += `
-            <div class="cart-item" data-id="${item.id}">
+            <div class="cart-item border-bottom py-3" data-id="${item.id}">
                 <div class="row align-items-center">
-                    <div class="col-md-2">
-                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}">
+                    <div class="col-md-2 col-3">
+                        <img src="${imgSrc}" class="img-fluid rounded" alt="${item.product.name}" style="max-height: 75px; object-fit: contain;">
                     </div>
-                    <div class="col-md-4">
-                        <h5>${item.product.name}</h5>
-                        <p class="text-muted">Precio: $${item.product.price.toFixed(2)}</p>
+                    <div class="col-md-4 col-9">
+                        <h6 class="mb-1">${item.product.name}</h6>
+                        <p class="text-muted small mb-1">Precio: ${formatCurrency(item.product.price)}</p>
                     </div>
-                    <div class="col-md-3">
-                        <div class="quantity-control">
-                            <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
-                            <input type="number" value="${item.quantity}" min="1" max="99" 
-                                   onchange="updateQuantity(${item.id}, this.value)">
-                            <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                    <div class="col-md-3 col-8 mt-2 mt-md-0">
+                        <div class="input-group input-group-sm" style="max-width: 120px;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                            <input type="number" class="form-control text-center quantity-input" value="${item.quantity}" min="1" max="99" 
+                                   aria-label="Cantidad" onchange="handleQuantityInputChange(this, ${item.id})">
+                            <button class="btn btn-outline-secondary" type="button" onclick="updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
                         </div>
                     </div>
-                    <div class="col-md-2">
-                        <strong>$${itemTotal.toFixed(2)}</strong>
+                    <div class="col-md-2 col-4 mt-2 mt-md-0 text-md-end">
+                        <strong>${formatCurrency(itemTotal)}</strong>
                     </div>
-                    <div class="col-md-1">
-                        <button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">
+                    <div class="col-md-1 col-12 text-md-center mt-2 mt-md-0">
+                        <button class="btn btn-sm btn-outline-danger" title="Eliminar item" onclick="removeItem(${item.id})">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -195,27 +204,49 @@ function updateCartUI(cartItems) {
     
     cartItemsContainer.innerHTML = cartHTML;
     
-    // Calcular y mostrar totales
-    const tax = subtotal * 0.19;
+    const taxRate = 0.19; // Asumimos IVA del 19%
+    const tax = subtotal * taxRate;
     const total = subtotal + tax;
     updateCartTotals(subtotal, tax, total);
 }
 
-// Actualizar totales del carrito
-function updateCartTotals(subtotal, tax, total) {
-    const subtotalElement = document.getElementById('cart-subtotal');
-    if (!subtotalElement) return;
-    
-    subtotalElement.textContent = `$${subtotal.toFixed(2)}`;
-    document.getElementById('cart-tax').textContent = `$${tax.toFixed(2)}`;
-    document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
+// Manejar cambio manual en input de cantidad en el carrito
+function handleQuantityInputChange(inputElement, itemId) {
+    let newQuantity = parseInt(inputElement.value);
+    if (isNaN(newQuantity) || newQuantity < 1) {
+        newQuantity = 1;
+        inputElement.value = 1; // Corregir visualmente
+    } else if (newQuantity > 99) {
+        newQuantity = 99;
+        inputElement.value = 99; // Corregir visualmente
+    }
+    updateQuantity(itemId, newQuantity);
 }
 
-// Actualizar cantidad de un producto en el carrito
+
+// Actualizar totales del carrito en la UI
+function updateCartTotals(subtotal, tax, total) {
+    const subtotalElement = document.getElementById('cart-subtotal');
+    const taxElement = document.getElementById('cart-tax');
+    const totalElement = document.getElementById('cart-total');
+
+    if (subtotalElement) subtotalElement.textContent = formatCurrency(subtotal);
+    if (taxElement) taxElement.textContent = formatCurrency(tax);
+    if (totalElement) totalElement.textContent = formatCurrency(total);
+}
+
+// Actualizar cantidad de un producto en el carrito (llamada a API)
 async function updateQuantity(itemId, newQuantity) {
-    if (newQuantity < 1) newQuantity = 1;
-    if (newQuantity > 99) newQuantity = 99;
+    if (newQuantity < 1) { // Si la cantidad es 0 o menos, tratar como eliminación
+        removeItem(itemId);
+        return;
+    }
+    if (newQuantity > 99) newQuantity = 99; // Límite
     
+    // Feedback visual temporal mientras se actualiza (opcional)
+    const itemRow = document.querySelector(`.cart-item[data-id="${itemId}"]`);
+    if(itemRow) itemRow.style.opacity = '0.5';
+
     try {
         const response = await fetch(`/api/cart/update/${itemId}`, {
             method: 'PUT',
@@ -229,33 +260,42 @@ async function updateQuantity(itemId, newQuantity) {
             throw new Error('Error al actualizar la cantidad');
         }
         
-        // Verificar si estamos en la página del carrito antes de intentar recargar la vista
-        const isCartPage = document.getElementById('cart-items') !== null;
-        if (isCartPage) {
-            await loadCart();
+        // Solo recargar si estamos en la página del carrito.
+        // Si no, solo actualizamos el contador.
+        if (document.getElementById('cart-items')) {
+            await loadCartPage(); // Recargar toda la UI del carrito para consistencia
         }
-        
-        // Actualizar contador del carrito (esto funciona en todas las páginas)
         await updateCartCount();
+
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error al actualizar cantidad:', error);
+        // Podrías mostrar un mensaje al usuario aquí.
+    } finally {
+        if(itemRow) itemRow.style.opacity = '1';
     }
 }
 
 // Eliminar un producto del carrito
 async function removeItem(itemId) {
-    if (!confirm('¿Estás seguro de eliminar este producto del carrito?')) {
-        return;
-    }
+    // No se necesita confirmación si updateQuantity con 0 llama a removeItem.
+    // Si se llama directamente, la confirmación es buena idea:
+    // if (!confirm('¿Estás seguro de eliminar este producto del carrito?')) {
+    //     return;
+    // }
     
+    const itemRow = document.querySelector(`.cart-item[data-id="${itemId}"]`);
+    if (itemRow) {
+        itemRow.style.transition = 'opacity 0.3s ease-out, max-height 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out';
+        itemRow.style.opacity = '0';
+        itemRow.style.maxHeight = '0px';
+        itemRow.style.marginTop = '0px';
+        itemRow.style.marginBottom = '0px';
+        itemRow.style.paddingTop = '0px';
+        itemRow.style.paddingBottom = '0px';
+        itemRow.style.overflow = 'hidden';
+    }
+
     try {
-        // Mostrar indicador de carga o deshabilitar el botón para feedback visual
-        const deleteButton = document.querySelector(`.cart-item[data-id="${itemId}"] .btn-danger`);
-        if (deleteButton) {
-            deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            deleteButton.disabled = true;
-        }
-        
         const response = await fetch(`/api/cart/remove/${itemId}`, {
             method: 'DELETE',
         });
@@ -264,115 +304,93 @@ async function removeItem(itemId) {
             throw new Error('Error al eliminar el producto');
         }
         
-        // Verificar si estamos en la página del carrito
-        const isCartPage = document.getElementById('cart-items') !== null;
-        if (isCartPage) {
-            // Eliminar el elemento directamente del DOM con animación
-            const cartItem = document.querySelector(`.cart-item[data-id="${itemId}"]`);
-            if (cartItem) {
-                // Agregar efecto de desvanecimiento
-                cartItem.style.transition = 'all 0.3s ease';
-                cartItem.style.opacity = '0';
-                cartItem.style.maxHeight = '0';
-                cartItem.style.margin = '0';
-                cartItem.style.padding = '0';
-                cartItem.style.overflow = 'hidden';
-                
-                // Después de la animación, eliminar el elemento y actualizar totales
-                setTimeout(async () => {
-                    cartItem.remove();
-                    
-                    // Recalcular totales
-                    const cartItems = await fetch('/api/cart').then(r => r.json());
-                    if (cartItems.length === 0) {
-                        const emptyCartMessage = document.getElementById('empty-cart-message');
-                        const checkoutBtn = document.getElementById('checkout-btn');
-                        
-                        if (emptyCartMessage) {
-                            emptyCartMessage.style.display = 'block';
-                        }
-                        if (checkoutBtn) {
-                            checkoutBtn.disabled = true;
-                        }
-                        
-                        updateCartTotals(0, 0, 0);
-                    } else {
-                        // Calcular nuevos totales
-                        let subtotal = 0;
-                        cartItems.forEach(item => {
-                            subtotal += item.quantity * item.product.price;
-                        });
-                        
-                        const tax = subtotal * 0.19;
-                        const total = subtotal + tax;
-                        updateCartTotals(subtotal, tax, total);
-                    }
-                }, 300);
+        // Esperar a que termine la animación antes de recargar/actualizar.
+        setTimeout(async () => {
+            if (itemRow) itemRow.remove(); // Eliminar del DOM
+            
+            // Actualizar totales y contador después de la eliminación exitosa
+            // No es necesario recargar toda la lista si solo se actualizan los totales
+            // Pero para asegurar consistencia, especialmente si el carrito queda vacío:
+            if (document.getElementById('cart-items')) {
+                 // Re-evaluar si el carrito está vacío para mostrar el mensaje correcto
+                const currentItems = document.querySelectorAll('#cart-items .cart-item');
+                if (currentItems.length === 0) {
+                    updateCartUI([]); // Esto mostrará el mensaje de carrito vacío y deshabilitará el pago
+                } else {
+                    // Si aún hay items, recalcular totales desde el backend para precisión
+                    const cartData = await fetch('/api/cart').then(res => res.json());
+                    updateCartUI(cartData); // Esto recalculará totales
+                }
             }
-        }
-        
-        // Actualizar contador del carrito en todas las páginas
-        await updateCartCount();
+            await updateCartCount();
+        }, 300); // Coincidir con la duración de la animación
+
     } catch (error) {
-        console.error('Error:', error);
-        // Restaurar el botón si hay un error
-        const deleteButton = document.querySelector(`.cart-item[data-id="${itemId}"] .btn-danger`);
-        if (deleteButton) {
-            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteButton.disabled = false;
+        console.error('Error al eliminar item:', error);
+        if (itemRow) { // Restaurar visibilidad si la API falla
+            itemRow.style.opacity = '1';
+            itemRow.style.maxHeight = '200px'; // Un valor aproximado
+            // Restaurar otros estilos si es necesario
         }
+        // Podrías mostrar un mensaje al usuario.
     }
 }
 
-// Actualizar el contador del carrito
+// Actualizar el contador del carrito en el navbar
 async function updateCartCount() {
     const cartCountElement = document.getElementById('cart-count');
     if (!cartCountElement) return;
     
+    const isLoggedIn = document.getElementById('user-status').value === 'true';
+    if (!isLoggedIn) {
+        cartCountElement.style.display = 'none';
+        return;
+    }
+
     try {
         const response = await fetch('/api/cart');
-        // Si no estamos autenticados o hay otro error, ocultar el contador
-        if (!response.ok) {
+        if (!response.ok) { // Si hay un error del servidor (ej. 401 si la sesión expiró)
             cartCountElement.style.display = 'none';
             return;
         }
         
         const cartItems = await response.json();
-        const count = cartItems.length;
+        // Contar la cantidad total de productos, no solo la cantidad de tipos de productos.
+        // const count = cartItems.reduce((sum, item) => sum + item.quantity, 0); 
+        // O si prefieres contar solo los tipos de productos diferentes:
+        const count = cartItems.length; 
         
         if (count > 0) {
-            cartCountElement.textContent = count > 9 ? '9+' : count;
-            cartCountElement.style.display = 'flex';
+            cartCountElement.textContent = count > 99 ? '99+' : count; // Ajustar límite visual
+            cartCountElement.style.display = 'inline-flex'; // 'flex' o 'inline-flex' según tu CSS
         } else {
             cartCountElement.style.display = 'none';
         }
     } catch (error) {
+        // Error de red, etc.
         console.error('Error al cargar el conteo del carrito:', error);
         cartCountElement.style.display = 'none';
     }
 }
 
-// Inicializar todas las funcionalidades
+// Inicializar funcionalidades cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', async function() {
-    // Inicializar controles de cantidad
-    setupQuantityControls();
+    // Configurar controles de cantidad en la página de detalle del producto
+    setupQuantityControlsProductDetail();
     
-    // Inicializar botón de añadir al carrito
-    addToCart();
+    // Configurar botón de añadir al carrito en la página de detalle
+    addToCartFromDetail();
     
-    // Cargar el carrito si estamos en la página del carrito
+    // Si estamos en la página del carrito, cargar los items
     if (document.getElementById('cart-items')) {
-        await loadCart();
+        await loadCartPage();
         
-        // Inicializar el botón de checkout
-        const checkoutBtn = document.getElementById('checkout-btn');
-        if (checkoutBtn) {
-            checkoutBtn.addEventListener('click', function() {
-                alert('Funcionalidad de pago no implementada en este proyecto de demostración.');
-            });
-        }
+        // El botón de checkout (`#checkout-btn`) ahora es parte de un formulario.
+        // El `cart.html` ya tiene el <form action="{{ url_for('iniciar_pago_webpay') }}" method="POST">
+        // No necesitamos un event listener aquí para el pago, el submit del form lo maneja.
+        // Solo nos aseguramos que el botón se habilite/deshabilite correctamente en updateCartUI.
     }
     
-    // Actualizar contador del carrito en todas las páginas
+    // Actualizar el contador del carrito en el navbar (se llama en todas las páginas)
     await updateCartCount();
-}); 
+});
