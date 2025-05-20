@@ -4,6 +4,8 @@ from flask_dance.consumer import oauth_authorized
 from flask_dance.consumer.storage import MemoryStorage
 import os
 from dotenv import load_dotenv
+from models import User, db
+from werkzeug.security import generate_password_hash
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -43,19 +45,36 @@ def google_logged_in(blueprint, token):
         return False
     
     user_info = resp.json()
+    email = user_info["email"]
+    
+    # Buscar si el usuario ya existe
+    user = User.query.filter_by(username=email).first()
+    
+    if not user:
+        # Crear nuevo usuario si no existe
+        user = User(
+            username=email,
+            password=generate_password_hash(os.urandom(24).hex(), method='pbkdf2:sha256')  # Contraseña aleatoria
+        )
+        db.session.add(user)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error al crear usuario: {str(e)}")
+            flash('Error al crear cuenta de usuario', 'danger')
+            return False
     
     # Guardar información en la sesión
     session["user"] = {
-        "email": user_info["email"],
+        "email": email,
         "name": user_info["name"],
         "picture": user_info.get("picture"),
         "auth_type": "google"
     }
     
-    # Usar email como identificador único para OAuth users
-    # Esto es importante para el carrito
-    email_hash = hash(user_info["email"])
-    session["user_id"] = email_hash
+    # Usar el ID real del usuario de la base de datos
+    session["user_id"] = user.id
     
     flash('¡Inicio de sesión exitoso con Google!', 'success')
     return redirect(url_for("home"))

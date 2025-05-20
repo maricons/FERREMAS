@@ -66,7 +66,8 @@ async function addToCart() {
             });
             
             if (!response.ok) {
-                throw new Error('Error al añadir al carrito');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Error al añadir al carrito');
             }
             
             const result = await response.json();
@@ -77,7 +78,7 @@ async function addToCart() {
             await updateCartCount();
         } catch (error) {
             console.error('Error:', error);
-            addResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Ha ocurrido un error al añadir el producto al carrito.</div>';
+            addResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Ha ocurrido un error al añadir el producto al carrito. Por favor, inicia sesión nuevamente.</div>';
         }
     });
 }
@@ -153,24 +154,20 @@ function updateCartUI(cartItems) {
         subtotal += itemTotal;
         
         // Preparar la URL de la imagen correctamente
-        let imgSrc;
-        if (item.product.image.startsWith('http')) {
-            // URL externa, no añadir prefijo
-            imgSrc = item.product.image;
-        } else {
-            // Imagen local, añadir prefijo /static/
-            imgSrc = `/static/${item.product.image}`;
+        let imgSrc = item.product.image;
+        if (imgSrc && !imgSrc.startsWith('http') && !imgSrc.startsWith('/static/')) {
+            imgSrc = `/static/images/${imgSrc}`;
         }
         
         cartHTML += `
             <div class="cart-item" data-id="${item.id}">
                 <div class="row align-items-center">
                     <div class="col-md-2">
-                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}">
+                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}" onerror="this.src='/static/images/no-image.jpg'">
                     </div>
                     <div class="col-md-4">
                         <h5>${item.product.name}</h5>
-                        <p class="text-muted">Precio: $${item.product.price.toFixed(2)}</p>
+                        <p class="text-muted">Precio: $${item.product.price.toLocaleString('es-CL')}</p>
                     </div>
                     <div class="col-md-3">
                         <div class="quantity-control">
@@ -181,7 +178,7 @@ function updateCartUI(cartItems) {
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <strong>$${itemTotal.toFixed(2)}</strong>
+                        <strong>$${itemTotal.toLocaleString('es-CL')}</strong>
                     </div>
                     <div class="col-md-1">
                         <button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">
@@ -352,6 +349,86 @@ async function updateCartCount() {
     }
 }
 
+// Iniciar proceso de pago con Webpay
+async function iniciarPago() {
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    `;
+    loadingOverlay.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 5px; text-align: center;">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Procesando pago...</p>
+        </div>
+    `;
+    
+    try {
+        // Mostrar overlay de carga
+        document.body.appendChild(loadingOverlay);
+        
+        console.log('Iniciando proceso de pago...');
+        
+        const response = await fetch('/iniciar-pago', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('Respuesta recibida:', response);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error en la respuesta:', errorData);
+            throw new Error(errorData.error || 'Error al iniciar el pago');
+        }
+
+        const data = await response.json();
+        console.log('Datos de redirección recibidos:', data);
+        
+        if (!data.token || !data.url) {
+            console.error('Datos de redirección inválidos:', data);
+            throw new Error('Datos de redirección inválidos');
+        }
+
+        console.log('Redirigiendo a:', data.url);
+        
+        // Crear un formulario oculto para enviar el token a Webpay
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = data.url;
+        form.style.display = 'none';
+        
+        // Agregar el token como token_ws
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token_ws';
+        tokenInput.value = data.token;
+        
+        form.appendChild(tokenInput);
+        document.body.appendChild(form);
+        
+        // Enviar el formulario
+        console.log('Enviando formulario a Webpay...');
+        form.submit();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Ha ocurrido un error al procesar el pago. Por favor, intente nuevamente.');
+        // Remover overlay de carga en caso de error
+        loadingOverlay.remove();
+    }
+}
+
 // Inicializar todas las funcionalidades
 document.addEventListener('DOMContentLoaded', async function() {
     // Inicializar controles de cantidad
@@ -367,9 +444,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Inicializar el botón de checkout
         const checkoutBtn = document.getElementById('checkout-btn');
         if (checkoutBtn) {
-            checkoutBtn.addEventListener('click', function() {
-                alert('Funcionalidad de pago no implementada en este proyecto de demostración.');
-            });
+            checkoutBtn.addEventListener('click', iniciarPago);
         }
     }
     
