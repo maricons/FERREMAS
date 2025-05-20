@@ -147,11 +147,11 @@ function updateCartUI(cartItems) {
     }
     
     let cartHTML = '';
-    let subtotal = 0;
+    let total = 0;
     
     cartItems.forEach(item => {
         const itemTotal = item.quantity * item.product.price;
-        subtotal += itemTotal;
+        total += itemTotal;
         
         // Preparar la URL de la imagen correctamente
         let imgSrc = item.product.image;
@@ -192,9 +192,9 @@ function updateCartUI(cartItems) {
     
     cartItemsContainer.innerHTML = cartHTML;
     
-    // Calcular y mostrar totales
-    const tax = subtotal * 0.19;
-    const total = subtotal + tax;
+    // Calcular subtotal e IVA (el precio ya incluye IVA)
+    const subtotal = Math.round(total / 1.19);
+    const tax = total - subtotal;
     updateCartTotals(subtotal, tax, total);
 }
 
@@ -295,13 +295,14 @@ async function removeItem(itemId) {
                         updateCartTotals(0, 0, 0);
                     } else {
                         // Calcular nuevos totales
-                        let subtotal = 0;
+                        let total = 0;
                         cartItems.forEach(item => {
-                            subtotal += item.quantity * item.product.price;
+                            total += item.quantity * item.product.price;
                         });
                         
-                        const tax = subtotal * 0.19;
-                        const total = subtotal + tax;
+                        // Calcular subtotal e IVA (el precio ya incluye IVA)
+                        const subtotal = Math.round(total / 1.19);
+                        const tax = total - subtotal;
                         updateCartTotals(subtotal, tax, total);
                     }
                 }, 300);

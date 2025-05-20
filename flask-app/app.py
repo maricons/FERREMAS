@@ -9,6 +9,8 @@ from webpay_plus import WebpayPlus
 from decimal import Decimal
 import json
 from extensions import db
+from flask_mail import Mail, Message
+from datetime import datetime
 
 # Cargar variables de entorno
 load_dotenv()
@@ -26,6 +28,17 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Asegurarse de que el directorio de uploads existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Configuración de correo electrónico
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+
+# Inicializar Flask-Mail
+mail = Mail(app)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -479,6 +492,36 @@ def iniciar_pago():
         db.session.rollback()
         return jsonify({'error': 'Error al procesar el pago'}), 500
 
+def enviar_comprobante(order, user_email):
+    """Envía el comprobante de pago por correo electrónico"""
+    try:
+        print("\n=== ENVIANDO COMPROBANTE POR EMAIL ===")
+        print(f"Enviando comprobante a: {user_email}")
+        
+        msg = Message(
+            'Comprobante de Pago - Ferremas',
+            recipients=[user_email]
+        )
+        
+        # Renderizar el template HTML con los datos de la orden
+        html = render_template(
+            'email/comprobante.html',
+            order=order,
+            current_year=datetime.now().year
+        )
+        
+        msg.html = html
+        mail.send(msg)
+        print("Correo enviado exitosamente")
+        
+    except Exception as e:
+        print("\n=== ERROR AL ENVIAR CORREO ===")
+        print(f"Error: {str(e)}")
+        print(f"Tipo de error: {type(e)}")
+        import traceback
+        print("Traceback completo:")
+        print(traceback.format_exc())
+
 @app.route('/retorno-webpay', methods=['GET', 'POST'])
 def retorno_webpay():
     print("\n=== PROCESANDO RETORNO DE WEBPAY ===")
@@ -539,6 +582,13 @@ def retorno_webpay():
             transaction.response_code = response_code
             transaction.amount = amount
             transaction.order.status = 'completed'
+            
+            # Obtener el correo del usuario
+            user = User.query.get(transaction.order.user_id)
+            if user:
+                # Enviar comprobante por correo
+                enviar_comprobante(transaction.order, user.username)
+            
             status = 'success'
         else:
             print(f"Transacción fallida con código: {response_code}")
