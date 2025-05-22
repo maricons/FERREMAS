@@ -726,6 +726,50 @@ def get_currencies():
     except Exception as e:
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+# Rutas para el contacto
+@app.route('/contacto')
+def contact_page():
+    user = session.get('user') if 'user' in session else None
+    return render_template('contact.html', user=user)
+
+@app.route('/api/contact', methods=['POST'])
+def send_contact_email():
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No se recibieron datos'}), 400
+            
+        required_fields = ['name', 'email', 'subject', 'message']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'El campo {field} es requerido'}), 400
+        
+        # Crear el mensaje
+        msg = Message(
+            subject=f"Contacto Ferremas: {data['subject']}",
+            recipients=[os.getenv('MAIL_DEFAULT_SENDER')],
+            reply_to=data['email']
+        )
+        
+        # Renderizar el template HTML
+        html = render_template(
+            'email/contact.html',
+            name=data['name'],
+            email=data['email'],
+            subject=data['subject'],
+            message=data['message']
+        )
+        
+        msg.html = html
+        mail.send(msg)
+        
+        return jsonify({'message': 'Mensaje enviado correctamente'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error al enviar correo de contacto: {str(e)}")
+        return jsonify({'error': 'Error al enviar el mensaje'}), 500
+
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':
     # Crear las tablas si no existen
