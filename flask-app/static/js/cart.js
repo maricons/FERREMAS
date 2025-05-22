@@ -37,49 +37,71 @@ function setupQuantityControls() {
 
 // Añadir al carrito
 async function addToCart() {
-    const addToCartBtn = document.getElementById('add-to-cart-btn');
-    if (!addToCartBtn) return;
-    
-    const addResult = document.getElementById('add-result');
-    const isLoggedIn = document.getElementById('user-status').value === 'true';
-    const productId = parseInt(document.getElementById('product-id').value);
-    const quantityInput = document.getElementById('quantity');
-    
-    addToCartBtn.addEventListener('click', async function() {
-        if (!isLoggedIn) {
-            addResult.innerHTML = '<div class="alert alert-warning">Debes <a href="/login">iniciar sesión</a> para añadir productos al carrito.</div>';
-            return;
-        }
-        
-        const quantity = parseInt(quantityInput.value);
-        
-        try {
-            const response = await fetch('/api/cart/add', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    product_id: productId,
-                    quantity: quantity
-                })
-            });
+    // Agregar event listeners a todos los botones de añadir al carrito
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
             
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Error al añadir al carrito');
+            if (!productId) {
+                console.error('No se encontró el ID del producto');
+                return;
             }
             
-            const result = await response.json();
+            const isLoggedIn = document.getElementById('user-status')?.value === 'true';
             
-            addResult.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Producto añadido al carrito correctamente. <a href="/carrito" class="alert-link ms-2">Ver carrito</a></div>';
+            if (!isLoggedIn) {
+                window.location.href = '/login';
+                return;
+            }
             
-            // Actualizar contador del carrito
-            await updateCartCount();
-        } catch (error) {
-            console.error('Error:', error);
-            addResult.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Ha ocurrido un error al añadir el producto al carrito. Por favor, inicia sesión nuevamente.</div>';
-        }
+            try {
+                const requestData = {
+                    product_id: parseInt(productId),
+                    quantity: 1
+                };
+                
+                console.log('Enviando datos al carrito:', requestData);
+                
+                const response = await fetch('/api/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const responseData = await response.json();
+                console.log('Respuesta del servidor:', responseData);
+                
+                if (!response.ok) {
+                    throw new Error(responseData.error || 'Error al añadir al carrito');
+                }
+                
+                // Mostrar mensaje de éxito
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+                alertDiv.style.zIndex = '1050';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>${productName} añadido al carrito
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                // Actualizar contador del carrito
+                await updateCartCount();
+                
+                // Remover el mensaje después de 3 segundos
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al añadir el producto al carrito: ' + error.message);
+            }
+        });
     });
 }
 
@@ -156,14 +178,14 @@ function updateCartUI(cartItems) {
         // Preparar la URL de la imagen correctamente
         let imgSrc = item.product.image;
         if (imgSrc && !imgSrc.startsWith('http') && !imgSrc.startsWith('/static/')) {
-            imgSrc = `/static/images/${imgSrc}`;
+            imgSrc = `/static/images/products/${imgSrc}`;
         }
         
         cartHTML += `
             <div class="cart-item" data-id="${item.id}">
                 <div class="row align-items-center">
                     <div class="col-md-2">
-                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}" onerror="this.src='/static/images/no-image.jpg'">
+                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}" onerror="this.src='/static/images/products/no-image.jpg'">
                     </div>
                     <div class="col-md-4">
                         <h5>${item.product.name}</h5>
@@ -336,7 +358,7 @@ async function updateCartCount() {
         }
         
         const cartItems = await response.json();
-        const count = cartItems.length;
+        const count = cartItems.reduce((total, item) => total + item.quantity, 0);
         
         if (count > 0) {
             cartCountElement.textContent = count > 9 ? '9+' : count;
@@ -436,7 +458,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupQuantityControls();
     
     // Inicializar botón de añadir al carrito
-    addToCart();
+    //addToCart();
     
     // Cargar el carrito si estamos en la página del carrito
     if (document.getElementById('cart-items')) {

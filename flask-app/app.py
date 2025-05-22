@@ -14,6 +14,7 @@ from datetime import datetime
 from flask_migrate import Migrate
 from currency_converter import CurrencyConverter
 import logging
+from flasgger import Swagger
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +48,55 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 # Inicializar Flask-Mail
 mail = Mail(app)
 
+# Definición del template Swagger
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Ferremas API",
+        "description": "Documentación de la API de Ferremas",
+        "version": "1.0"
+    },
+    "definitions": {
+        "Product": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": {"type": "string"},
+                "price": {"type": "number"},
+                "image": {"type": "string"},
+                "description": {"type": "string"},
+                "stock": {"type": "integer"},
+                "is_featured": {"type": "boolean"},
+                "is_promotion": {"type": "boolean"},
+                "promotion_price": {"type": "number"},
+                "category_id": {"type": "integer"}
+            }
+        },
+        "CartItem": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "user_id": {"type": "integer"},
+                "product_id": {"type": "integer"},
+                "quantity": {"type": "integer"},
+                "product": {"$ref": "#/definitions/Product"}
+            }
+        },
+        "Category": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "icon": {"type": "string"}
+            }
+        }
+    }
+}
+
+# Inicializar Flasgger para documentación Swagger
+swagger = Swagger(app, template=swagger_template)
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -71,7 +121,7 @@ webpay = WebpayPlus(app)
 currency_converter = CurrencyConverter()
 
 # Importar modelos después de inicializar db
-from models import Order, OrderItem, WebpayTransaction, Product, User, CartItem
+from models import Order, OrderItem, WebpayTransaction, Product, User, CartItem, Category
 
 # Esquemas para serialización
 class ProductSchema(Schema):
@@ -98,8 +148,33 @@ cart_items_schema = CartItemSchema(many=True)
 def home():
     # Obtener información del usuario desde la sesión
     user = session.get('user') if 'user' in session else None
-    products = Product.query.all()  # retrieve all products
-    return render_template('index.html', products=products, user=user)
+    
+    # Obtener todas las categorías
+    categories = Category.query.all()
+    
+    # Obtener productos destacados
+    featured_products = Product.query.filter_by(is_featured=True).limit(8).all()
+    
+    # Obtener productos en promoción
+    promotion_products = Product.query.filter_by(is_promotion=True).limit(6).all()
+    
+    return render_template('index.html', 
+                         user=user,
+                         categories=categories,
+                         featured_products=featured_products,
+                         promotion_products=promotion_products)
+
+# Ruta para ver productos por categoría
+@app.route('/categoria/<int:category_id>')
+def category_products(category_id):
+    category = Category.query.get_or_404(category_id)
+    products = Product.query.filter_by(category_id=category_id).all()
+    user = session.get('user') if 'user' in session else None
+    
+    return render_template('category_products.html',
+                         category=category,
+                         products=products,
+                         user=user)
 
 # PRODUCT DETAIL
 @app.route('/product/<int:product_id>')
@@ -209,11 +284,43 @@ def register():
 # Rutas de la API
 @app.route('/api/products', methods=['GET'])
 def get_products():
+    """
+    Obtener todos los productos
+    ---
+    tags:
+      - Productos
+    responses:
+      200:
+        description: Lista de productos
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/Product'
+    """
     products = Product.query.all()
     return jsonify(products_schema.dump(products))
 
 @app.route('/api/products/<int:id>', methods=['GET'])
 def get_product(id):
+    """
+    Obtener un producto por ID
+    ---
+    tags:
+      - Productos
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID del producto
+    responses:
+      200:
+        description: Producto encontrado
+        schema:
+          $ref: '#/definitions/Product'
+      404:
+        description: Producto no encontrado
+    """
     product = Product.query.get_or_404(id)
     return jsonify(product_schema.dump(product))
 
@@ -280,6 +387,21 @@ def delete_product(id):
 # API para el Carrito de Compras
 @app.route('/api/cart', methods=['GET'])
 def get_cart():
+    """
+    Obtener el carrito del usuario autenticado
+    ---
+    tags:
+      - Carrito
+    responses:
+      200:
+        description: Lista de items en el carrito
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/CartItem'
+      401:
+        description: Usuario no autenticado
+    """
     if not session.get('user_id'):
         return jsonify({"error": "Usuario no autenticado"}), 401
     
@@ -301,37 +423,64 @@ def add_to_cart():
     if not session.get('user_id'):
         return jsonify({"error": "Usuario no autenticado"}), 401
     
-    data = request.json
-    if not data or 'product_id' not in data:
-        return jsonify({"error": "Se requiere product_id"}), 400
-    
-    user_id = session.get('user_id')
-    product_id = data['product_id']
-    quantity = data.get('quantity', 1)
-    
-    # Verificar si el producto existe
-    product = Product.query.get(product_id)
-    if not product:
-        return jsonify({"error": "Producto no encontrado"}), 404
-    
-    # Verificar si el producto ya está en el carrito
-    cart_item = CartItem.query.filter_by(user_id=user_id, product_id=product_id).first()
-    
-    if cart_item:
-        # Actualizar cantidad si ya existe
-        cart_item.quantity += quantity
-    else:
-        # Crear nuevo item en el carrito
-        cart_item = CartItem(user_id=user_id, product_id=product_id, quantity=quantity)
-        db.session.add(cart_item)
-    
-    db.session.commit()
-    
-    # Incluir información del producto en la respuesta
-    item_data = cart_item_schema.dump(cart_item)
-    item_data['product'] = product_schema.dump(product)
-    
-    return jsonify(item_data), 201
+    try:
+        data = request.get_json()
+        logger.info(f"Datos recibidos en add_to_cart: {data}")
+        
+        if not data:
+            logger.error("No se recibieron datos JSON")
+            return jsonify({"error": "No se recibieron datos"}), 400
+        
+        if 'product_id' not in data:
+            logger.error("Falta product_id en la solicitud")
+            return jsonify({"error": "Se requiere product_id"}), 400
+        
+        user_id = session.get('user_id')
+        product_id = int(data['product_id'])
+        quantity = int(data.get('quantity', 1))
+        
+        logger.info(f"Intentando añadir producto {product_id} al carrito del usuario {user_id}")
+        
+        # Validar que el producto existe
+        product = Product.query.get(product_id)
+        if not product:
+            logger.error(f"Producto {product_id} no encontrado")
+            return jsonify({"error": "Producto no encontrado"}), 404
+        
+        # Validar que hay stock disponible
+        if product.stock < quantity:
+            logger.error(f"Stock insuficiente para el producto {product_id}")
+            return jsonify({"error": "No hay suficiente stock disponible"}), 400
+        
+        # Verificar si el producto ya está en el carrito
+        cart_item = CartItem.query.filter_by(user_id=user_id, product_id=product_id).first()
+        
+        if cart_item:
+            # Actualizar cantidad si ya existe
+            cart_item.quantity += quantity
+            logger.info(f"Actualizada cantidad del producto {product_id} en el carrito")
+        else:
+            # Crear nuevo item en el carrito
+            cart_item = CartItem(user_id=user_id, product_id=product_id, quantity=quantity)
+            db.session.add(cart_item)
+            logger.info(f"Añadido nuevo producto {product_id} al carrito")
+        
+        db.session.commit()
+        
+        # Incluir información del producto en la respuesta
+        item_data = cart_item_schema.dump(cart_item)
+        item_data['product'] = product_schema.dump(product)
+        
+        logger.info(f"Producto {product_id} añadido exitosamente al carrito")
+        return jsonify(item_data), 201
+        
+    except ValueError as e:
+        logger.error(f"Error de valor: {str(e)}")
+        return jsonify({"error": "Datos inválidos"}), 400
+    except Exception as e:
+        logger.error(f"Error al añadir al carrito: {str(e)}")
+        db.session.rollback()
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 @app.route('/api/cart/update/<int:item_id>', methods=['PUT'])
 def update_cart_item(item_id):
@@ -718,8 +867,23 @@ def convert_currency():
         logger.error(f"Error general en /api/convert: {str(e)}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
-@app.route('/api/currencies')
+@app.route('/api/currencies', methods=['GET'])
 def get_currencies():
+    """
+    Obtener las monedas disponibles para el conversor de divisas
+    ---
+    tags:
+      - Conversor de Divisas
+    responses:
+      200:
+        description: Lista de monedas disponibles
+        schema:
+          type: array
+          items:
+            type: string
+      500:
+        description: Error interno del servidor
+    """
     try:
         currencies = currency_converter.get_available_currencies()
         return jsonify(currencies)
@@ -734,6 +898,60 @@ def contact_page():
 
 @app.route('/api/contact', methods=['POST'])
 def send_contact_email():
+    """
+    Enviar un mensaje de contacto por email
+    ---
+    tags:
+      - Contacto
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - email
+            - subject
+            - message
+          properties:
+            name:
+              type: string
+              example: Juan Pérez
+            email:
+              type: string
+              example: juan@email.com
+            subject:
+              type: string
+              example: Consulta
+            message:
+              type: string
+              example: Hola, tengo una duda sobre un producto.
+    responses:
+      200:
+        description: Mensaje enviado correctamente
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+      400:
+        description: Datos inválidos o incompletos
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      500:
+        description: Error al enviar el mensaje
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+    """
     try:
         data = request.get_json()
         
@@ -769,6 +987,32 @@ def send_contact_email():
     except Exception as e:
         logger.error(f"Error al enviar correo de contacto: {str(e)}")
         return jsonify({'error': 'Error al enviar el mensaje'}), 500
+
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    """
+    Obtener todas las categorías
+    ---
+    tags:
+      - Categorías
+    responses:
+      200:
+        description: Lista de categorías
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/Category'
+    """
+    categories = Category.query.all()
+    result = []
+    for cat in categories:
+        result.append({
+            'id': cat.id,
+            'name': cat.name,
+            'description': cat.description,
+            'icon': cat.icon
+        })
+    return jsonify(result)
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':

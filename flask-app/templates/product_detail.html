@@ -48,7 +48,7 @@
 <div class="container py-4">
     <div class="row">
         <div class="col-md-6">
-            <img src="{{ url_for('static', filename=product.image) if product.image else url_for('static', filename='images/no-image.jpg') }}" 
+            <img src="{{ url_for('static', filename='images/products/' + product.image) if product.image else url_for('static', filename='images/products/no-image.jpg') }}" 
                  class="img-fluid product-image" 
                  alt="{{ product.name }}">
         </div>

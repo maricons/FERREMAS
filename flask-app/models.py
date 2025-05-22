@@ -1,6 +1,21 @@
 from extensions import db
 from datetime import datetime
 
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(200))
+    icon = db.Column(db.String(50))  # Para el ícono de FontAwesome
+    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now())
+    
+    # Relación con productos
+    products = db.relationship('Product', backref='category', lazy=True)
+    
+    def __repr__(self):
+        return f'<Category {self.name}>'
+
 class Product(db.Model):
     __tablename__ = 'products'
     
@@ -8,6 +23,14 @@ class Product(db.Model):
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Float, nullable=False)
     image = db.Column(db.String(200), nullable=True)
+    description = db.Column(db.Text)
+    stock = db.Column(db.Integer, default=0)
+    is_featured = db.Column(db.Boolean, default=False)
+    is_promotion = db.Column(db.Boolean, default=False)
+    promotion_price = db.Column(db.Float)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
 
     def __repr__(self):
         return f'<Product {self.name}>'
