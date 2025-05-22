@@ -129,6 +129,8 @@ class ProductSchema(Schema):
     name = fields.Str(required=True)
     price = fields.Float(required=True)
     image = fields.Str()
+    is_promotion = fields.Bool()
+    promotion_price = fields.Float()
 
 class CartItemSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -564,8 +566,13 @@ def iniciar_pago():
             return jsonify({'error': 'Carrito vacío'}), 400
         
         print("Calculando total de la compra...")
-        # Calcular total
-        total = sum(item.quantity * item.product.price for item in cart_items)
+        # Calcular total usando precio de promoción si corresponde
+        def get_precio_producto(item):
+            producto = item.product
+            if getattr(producto, 'is_promotion', False) and getattr(producto, 'promotion_price', None) is not None:
+                return item.quantity * producto.promotion_price
+            return item.quantity * producto.price
+        total = sum(get_precio_producto(item) for item in cart_items)
         print(f"Total calculado: {total}")
         
         print("Creando orden en la base de datos...")
@@ -583,11 +590,16 @@ def iniciar_pago():
             # Crear items de la orden
             print("Creando items de la orden...")
             for cart_item in cart_items:
+                producto = cart_item.product
+                if getattr(producto, 'is_promotion', False) and getattr(producto, 'promotion_price', None) is not None:
+                    precio_usado = producto.promotion_price
+                else:
+                    precio_usado = producto.price
                 order_item = OrderItem(
                     order=order,
                     product_id=cart_item.product_id,
                     quantity=cart_item.quantity,
-                    price_at_time=cart_item.product.price
+                    price_at_time=precio_usado
                 )
                 db.session.add(order_item)
             

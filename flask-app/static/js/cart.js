@@ -172,11 +172,21 @@ function updateCartUI(cartItems) {
     let total = 0;
     
     cartItems.forEach(item => {
-        const itemTotal = item.quantity * item.product.price;
+        const product = item.product;
+        let priceToShow = product.price;
+        let priceHtml = '';
+        // Si el producto está en promoción, mostrar ambos precios
+        if (product.is_promotion && product.promotion_price !== null && product.promotion_price !== undefined) {
+            priceToShow = product.promotion_price;
+            priceHtml = `<span class="text-decoration-line-through text-muted">$${product.price.toLocaleString('es-CL')}</span> <span class="text-danger ms-2">$${product.promotion_price.toLocaleString('es-CL')}</span>`;
+        } else {
+            priceHtml = `<span class="h5 mb-0">$${product.price.toLocaleString('es-CL')}</span>`;
+        }
+        const itemTotal = item.quantity * priceToShow;
         total += itemTotal;
         
         // Preparar la URL de la imagen correctamente
-        let imgSrc = item.product.image;
+        let imgSrc = product.image;
         if (imgSrc && !imgSrc.startsWith('http') && !imgSrc.startsWith('/static/')) {
             imgSrc = `/static/images/products/${imgSrc}`;
         }
@@ -185,11 +195,11 @@ function updateCartUI(cartItems) {
             <div class="cart-item" data-id="${item.id}">
                 <div class="row align-items-center">
                     <div class="col-md-2">
-                        <img src="${imgSrc}" class="img-fluid" alt="${item.product.name}" onerror="this.src='/static/images/products/no-image.jpg'">
+                        <img src="${imgSrc}" class="img-fluid" alt="${product.name}" onerror="this.src='/static/images/products/no-image.jpg'">
                     </div>
                     <div class="col-md-4">
-                        <h5>${item.product.name}</h5>
-                        <p class="text-muted">Precio: $${item.product.price.toLocaleString('es-CL')}</p>
+                        <h5>${product.name}</h5>
+                        <p class="text-muted">Precio: ${priceHtml}</p>
                     </div>
                     <div class="col-md-3">
                         <div class="quantity-control">
