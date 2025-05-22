@@ -782,7 +782,7 @@ def retorno_webpay():
             user = User.query.get(transaction.order.user_id)
             if user:
                 # Enviar comprobante por correo
-                enviar_comprobante(transaction.order, user.username)
+                enviar_comprobante(transaction.order, user.email)
             
             status = 'success'
         else:
