@@ -48,12 +48,13 @@ def google_logged_in(blueprint, token):
     email = user_info["email"]
     
     # Buscar si el usuario ya existe
-    user = User.query.filter_by(username=email).first()
+    user = User.query.filter_by(email=email).first()
     
     if not user:
         # Crear nuevo usuario si no existe
         user = User(
-            username=email,
+            username=user_info["name"],  # Usar el nombre como username
+            email=email,  # Guardar el email
             password=generate_password_hash(os.urandom(24).hex(), method='pbkdf2:sha256')  # Contraseña aleatoria
         )
         db.session.add(user)

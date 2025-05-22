@@ -11,6 +11,13 @@ import json
 from extensions import db
 from flask_mail import Mail, Message
 from datetime import datetime
+from flask_migrate import Migrate
+from currency_converter import CurrencyConverter
+import logging
+
+# Configuración del logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Cargar variables de entorno
 load_dotenv()
@@ -55,9 +62,13 @@ app.config['BASE_URL'] = os.getenv('BASE_URL', 'http://localhost:5000')
 
 # Inicializar extensiones
 db.init_app(app)
+migrate = Migrate(app, db)
 
 # Inicializar Webpay Plus
 webpay = WebpayPlus(app)
+
+# Inicializar el conversor de monedas
+currency_converter = CurrencyConverter()
 
 # Importar modelos después de inicializar db
 from models import Order, OrderItem, WebpayTransaction, Product, User, CartItem
@@ -86,13 +97,7 @@ cart_items_schema = CartItemSchema(many=True)
 @app.route('/')
 def home():
     # Obtener información del usuario desde la sesión
-    user = None
-    if 'user' in session:
-        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
-            user = session['user']
-        else:  # Login normal
-            user = session.get('user')
-    
+    user = session.get('user') if 'user' in session else None
     products = Product.query.all()  # retrieve all products
     return render_template('index.html', products=products, user=user)
 
@@ -100,44 +105,35 @@ def home():
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
     product = Product.query.get_or_404(product_id)
-    
     # Obtener información del usuario desde la sesión
-    user = None
-    if 'user' in session:
-        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
-            user = session['user']
-        else:  # Login normal
-            user = session.get('user')
-    
+    user = session.get('user') if 'user' in session else None
     return render_template('product_detail.html', product=product, user=user)
 
 # CART
 @app.route('/carrito')
 def carrito():
     # Obtener información del usuario desde la sesión
-    user = None
-    if 'user' in session:
-        if isinstance(session['user'], dict) and 'email' in session['user']:  # Google OAuth
-            user = session['user']
-        else:  # Login normal
-            user = session.get('user')
-    
+    user = session.get('user') if 'user' in session else None
     return render_template('cart.html', user=user)
 
 #LOGIN
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-         username = request.form.get('username')
+         email = request.form.get('email')
          password = request.form.get('password')
-         user = User.query.filter_by(username=username).first()
+         user = User.query.filter_by(email=email).first()
          if user and check_password_hash(user.password, password):
-             session['user'] = user.username
+             session['user'] = {
+                 "email": user.email,
+                 "name": user.username,
+                 "auth_type": "local"
+             }
              session['user_id'] = user.id
-             flash('Login successful!', 'success')
+             flash('¡Inicio de sesión exitoso!', 'success')
              return redirect(url_for('home'))
          else:
-             flash('Invalid credentials. Please try again.', 'danger')
+             flash('Credenciales inválidas. Por favor, intenta de nuevo.', 'danger')
     return render_template('login.html')
 
 #LOGOUT
@@ -152,23 +148,61 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        try:
+            username = request.form.get('username')
+            password = request.form.get('password')
+            email = request.form.get('email')
 
-        # Check if the username already exists
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            flash('Username already exists. Please choose a different one.', 'danger')
+            # Validar campos requeridos
+            if not all([username, password, email]):
+                flash('Todos los campos son requeridos', 'danger')
+                return redirect(url_for('register'))
+
+            # Validar formato de email
+            if '@' not in email or '.' not in email:
+                flash('Por favor, ingrese un email válido', 'danger')
+                return redirect(url_for('register'))
+
+            # Validar longitud de contraseña
+            if len(password) < 6:
+                flash('La contraseña debe tener al menos 6 caracteres', 'danger')
+                return redirect(url_for('register'))
+
+            # Check if the username already exists
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('El nombre de usuario ya existe. Por favor, elija otro.', 'danger')
+                return redirect(url_for('register'))
+
+            # Check if the email already exists
+            existing_email = User.query.filter_by(email=email).first()
+            if existing_email:
+                flash('El email ya está registrado. Por favor, use otro.', 'danger')
+                return redirect(url_for('register'))
+
+            # Hash the password and create a new user
+            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+            new_user = User(
+                username=username,
+                password=hashed_password,
+                email=email
+            )
+            
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                flash('¡Registro exitoso! Ahora puede iniciar sesión.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error al crear usuario: {str(e)}")
+                flash('Error al crear la cuenta. Por favor, intente nuevamente.', 'danger')
+                return redirect(url_for('register'))
+
+        except Exception as e:
+            logger.error(f"Error en el registro: {str(e)}")
+            flash('Error al procesar el registro. Por favor, intente nuevamente.', 'danger')
             return redirect(url_for('register'))
-
-        # Hash the password and create a new user
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        new_user = User(username=username, password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
-
-        flash('Registration successful! You can now log in.', 'success')
-        return redirect(url_for('login'))
 
     return render_template('register.html')
 
@@ -615,6 +649,82 @@ def retorno_webpay():
 def comprobante_pago():
     status = request.args.get('status', 'error')
     return render_template('comprobante_pago.html', status=status, user=session.get('user'))
+
+# Rutas para el conversor de monedas
+@app.route('/conversor-moneda')
+def currency_converter_page():
+    try:
+        # Obtener información del usuario desde la sesión
+        user = session.get('user') if 'user' in session else None
+        currencies = currency_converter.get_available_currencies()
+        return render_template('currency_converter.html', currencies=currencies, user=user)
+    except Exception as e:
+        logger.error(f"Error al cargar el conversor de monedas: {str(e)}")
+        flash('Error al cargar el conversor de monedas', 'danger')
+        return redirect(url_for('home'))
+
+@app.route('/api/convert', methods=['POST'])
+def convert_currency():
+    try:
+        # Verificar que la solicitud sea JSON
+        if not request.is_json:
+            logger.error("La solicitud no es JSON")
+            return jsonify({'error': 'Se requiere formato JSON'}), 400
+
+        data = request.get_json()
+        logger.info(f"Datos recibidos en /api/convert: {data}")
+        
+        if not data:
+            logger.error("No se recibieron datos JSON")
+            return jsonify({'error': 'No se recibieron datos'}), 400
+        
+        amount = data.get('amount')
+        from_currency = data.get('currency')
+        
+        logger.info(f"Procesando conversión: amount={amount}, currency={from_currency}")
+        
+        if not amount or not from_currency:
+            logger.error("Faltan datos requeridos")
+            return jsonify({'error': 'Se requiere monto y moneda'}), 400
+            
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                logger.error(f"Monto inválido: {amount}")
+                return jsonify({'error': 'El monto debe ser mayor que 0'}), 400
+        except (TypeError, ValueError):
+            logger.error(f"Error al convertir monto a float: {amount}")
+            return jsonify({'error': 'El monto debe ser un número válido'}), 400
+            
+        logger.info(f"Intentando convertir {amount} {from_currency} a CLP")
+        
+        try:
+            # Verificar que el conversor esté inicializado correctamente
+            if not currency_converter:
+                logger.error("El conversor de monedas no está inicializado")
+                return jsonify({'error': 'Error en la configuración del conversor'}), 500
+
+            result = currency_converter.convert_to_clp(amount, from_currency)
+            logger.info(f"Conversión exitosa: {result}")
+            return jsonify(result)
+        except ValueError as e:
+            logger.error(f"Error en la conversión: {str(e)}")
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error inesperado en la conversión: {str(e)}")
+            return jsonify({'error': 'Error al realizar la conversión'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error general en /api/convert: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/currencies')
+def get_currencies():
+    try:
+        currencies = currency_converter.get_available_currencies()
+        return jsonify(currencies)
+    except Exception as e:
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':
