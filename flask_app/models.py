@@ -1,5 +1,5 @@
-from extensions import db
 from datetime import datetime
+from .extensions import db
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -105,17 +105,11 @@ class WebpayTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id', ondelete='SET NULL'))
     buy_order = db.Column(db.String(50), unique=True, nullable=False)
-    token_ws = db.Column(db.String(100))
+    token_ws = db.Column(db.String(255))
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='initiated')
-    transaction_date = db.Column(db.DateTime(timezone=True))
-    authorization_code = db.Column(db.String(20))
-    payment_type_code = db.Column(db.String(20))
-    response_code = db.Column(db.String(10))
-    installments_number = db.Column(db.Integer)
-    card_number = db.Column(db.String(20))
-    transaction_detail = db.Column(db.Text)
-    session_id = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='pending')
+    response_code = db.Column(db.Integer)
+    session_id = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now())
     updated_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now())
 

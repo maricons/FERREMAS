@@ -1,5 +1,6 @@
-from app import app, db
-from models import Category, Product, User, CartItem, Order, OrderItem, WebpayTransaction
+from .models import Category, Product, User, CartItem, Order, OrderItem, WebpayTransaction
+from .extensions import db
+from .app import app
 
 def reset_database():
     with app.app_context():

@@ -1,5 +1,6 @@
-from app import app, db
-from models import Product, Category
+from .models import Product, Category
+from .extensions import db
+from .app import app
 
 def init_products():
     # Mapeo de nombre de categoría a nombre usado en productos

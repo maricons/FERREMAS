@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Checkout</h2>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Resumen de la compra</h5>
+                    <div id="cart-items">
+                        <!-- Los items del carrito se cargarán aquí -->
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <h5>Total:</h5>
+                        <h5 id="cart-total">$0</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Método de pago</h5>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="payment-method" id="webpay" checked>
+                        <label class="form-check-label" for="webpay">
+                            WebPay
+                        </label>
+                    </div>
+                    <button id="pay-button" class="btn btn-primary w-100">Pagar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadCartItems() {
+    try {
+        const response = await fetch('/cart/items');
+        const data = await response.json();
+        
+        const cartItemsDiv = document.getElementById('cart-items');
+        let total = 0;
+        
+        cartItemsDiv.innerHTML = '';
+        data.items.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            
+            cartItemsDiv.innerHTML += `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">${item.name}</h6>
+                        <small class="text-muted">Cantidad: ${item.quantity}</small>
+                    </div>
+                    <div>
+                        <span>$${itemTotal}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        document.getElementById('cart-total').textContent = `$${total}`;
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+document.getElementById('pay-button').addEventListener('click', async () => {
+    try {
+        const response = await fetch('/iniciar-pago', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al iniciar el pago');
+        }
+        
+        const data = await response.json();
+        window.location.href = data.url;
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al procesar el pago');
+    }
+});
+
+// Cargar items al iniciar
+loadCartItems();
+</script>
+{% endblock %} 

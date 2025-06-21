@@ -1,5 +1,6 @@
-from app import app, db
-from models import Product
+from .models import Product
+from .extensions import db
+from app import app
 
 def init_db():
     with app.app_context():

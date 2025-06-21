@@ -1,6 +1,45 @@
-.cursor/
+# #################### #
+# Archivos de Entorno Virtual y Dependencias #
+# #################### # 
+
+# La carpeta del entorno virtual nunca debe subirse al repositorio.
+venv/
+
+# Archivos de caché de Python generados automáticamente.
 __pycache__/
 *.pyc
-venv/
+
+# Archivos de metadatos de paquetes generados por setuptools/pip.
+*.egg-info/
+
+
+# #################### #
+# Archivos de Configuración y Secretos #
+# #################### #
+
+# El archivo .env contiene contraseñas y claves de API.
+# ¡NUNCA debe estar en el repositorio público!
 .env
-*.db 
+
+
+# #################### #
+# Bases de Datos Locales #
+# #################### #
+
+# Bases de datos de SQLite que se usan para desarrollo local.
+*.db
+*.sqlite3
+
+# Logs de la aplicación que no son necesarios en el repositorio.
+*.log
+
+
+# #################### #
+# Archivos de Editor de Código #
+# #################### #
+
+# Carpeta de configuración específica del editor Cursor.
+.cursor/
+
+# Carpeta de configuración específica del editor VSCode (muy común).
+.vscode/

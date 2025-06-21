@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-6">
+            <img src="{{ url_for('static', filename='uploads/' + product.image) if product.image else url_for('static', filename='images/default-product.jpg') }}" 
+                 alt="{{ product.name }}" 
+                 class="img-fluid product-image">
+        </div>
+        <div class="col-md-6" data-product-id="{{ product.id }}">
+            <h1>{{ product.name }}</h1>
+            <p class="text-muted">{{ product.description }}</p>
+            <h2 class="text-primary">${{ product.price }}</h2>
+            
+            <div class="quantity-control">
+                <button onclick="updateQuantity(-1)">-</button>
+                <input type="number" id="quantity" value="1" min="1" max="10">
+                <button onclick="updateQuantity(1)">+</button>
+            </div>
+
+            <button class="btn btn-primary" onclick="addToCart()">
+                <i class="fas fa-shopping-cart"></i> Agregar al carrito
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateQuantity(change) {
+    const quantityInput = document.getElementById('quantity');
+    let newValue = parseInt(quantityInput.value) + change;
+    if (newValue >= 1 && newValue <= 10) {
+        quantityInput.value = newValue;
+    }
+}
+
+async function addToCart() {
+    try {
+        const quantity = parseInt(document.getElementById('quantity').value);
+        const productId = document.querySelector('[data-product-id]').dataset.productId;
+
+        const response = await fetch('/api/cart/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_id: parseInt(productId),
+                quantity: quantity
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al añadir al carrito');
+        }
+
+        // Mostrar mensaje de éxito
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+        alertDiv.style.zIndex = '1050';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>Producto añadido al carrito
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        // Actualizar contador del carrito
+        if (window.updateCartCount && typeof window.updateCartCount === 'function') {
+            await window.updateCartCount();
+        }
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al añadir el producto al carrito');
+    }
+}
+</script>
+{% endblock %} 

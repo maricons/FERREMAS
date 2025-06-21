@@ -3,16 +3,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from marshmallow import Schema, fields
 import os
 from werkzeug.utils import secure_filename
-from auth import auth_bp
+from .auth import auth_bp
 from dotenv import load_dotenv
-from webpay_plus import WebpayPlus
+from .webpay_plus import WebpayPlus
 from decimal import Decimal
 import json
-from extensions import db
+from .extensions import db
 from flask_mail import Mail, Message
 from datetime import datetime
 from flask_migrate import Migrate
-from currency_converter import CurrencyConverter
+from .currency_converter import CurrencyConverter
 import logging
 from flasgger import Swagger
 
@@ -121,7 +121,7 @@ webpay = WebpayPlus(app)
 currency_converter = CurrencyConverter()
 
 # Importar modelos después de inicializar db
-from models import Order, OrderItem, WebpayTransaction, Product, User, CartItem, Category
+from .models import Order, OrderItem, WebpayTransaction, Product, User, CartItem, Category
 
 # Esquemas para serialización
 class ProductSchema(Schema):
@@ -218,7 +218,7 @@ def login():
 def logout():
     session.pop('user', None)
     session.pop('user_id', None)
-    flash('You have been logged out.', 'success')
+    flash('Has cerrado sesión exitosamente.', 'success')
     return redirect(url_for('home'))
 
 # REGISTER
@@ -552,140 +552,111 @@ def clear_cart():
 # Rutas de Webpay
 @app.route('/iniciar-pago', methods=['POST'])
 def iniciar_pago():
-    print("\n=== INICIANDO PROCESO DE PAGO ===")
-    if not session.get('user_id'):
-        print("Error: Usuario no autenticado")
-        return jsonify({'error': 'Usuario no autenticado'}), 401
-    
     try:
-        print(f"Usuario autenticado: {session['user_id']}")
+        # Verificar si el usuario está autenticado
+        if not session.get('user_id'):
+            return jsonify({'error': 'Usuario no autenticado'}), 401
+
+        user_id = session['user_id']
+        print("\n=== INICIANDO PROCESO DE PAGO ===")
+        print(f"Usuario autenticado: {user_id}")
+
         # Obtener items del carrito
-        cart_items = CartItem.query.filter_by(user_id=session['user_id']).all()
+        cart_items = CartItem.query.filter_by(user_id=user_id).all()
         if not cart_items:
-            print("Error: Carrito vacío")
             return jsonify({'error': 'Carrito vacío'}), 400
-        
+
+        # Calcular total
         print("Calculando total de la compra...")
-        # Calcular total usando precio de promoción si corresponde
-        def get_precio_producto(item):
-            producto = item.product
-            if getattr(producto, 'is_promotion', False) and getattr(producto, 'promotion_price', None) is not None:
-                return item.quantity * producto.promotion_price
-            return item.quantity * producto.price
-        total = sum(get_precio_producto(item) for item in cart_items)
+        total = Decimal('0')
+        for item in cart_items:
+            product = Product.query.get(item.product_id)
+            if product:
+                total += Decimal(str(product.price)) * Decimal(str(item.quantity))
+
         print(f"Total calculado: {total}")
-        
+
+        # Crear orden
         print("Creando orden en la base de datos...")
-        try:
-            # Crear orden
-            order = Order(
-                user_id=session['user_id'],
-                total_amount=total,
-                status='pending'
-            )
-            db.session.add(order)
-            db.session.flush()
-            print(f"Orden creada con ID: {order.id}")
-            
-            # Crear items de la orden
-            print("Creando items de la orden...")
-            for cart_item in cart_items:
-                producto = cart_item.product
-                if getattr(producto, 'is_promotion', False) and getattr(producto, 'promotion_price', None) is not None:
-                    precio_usado = producto.promotion_price
-                else:
-                    precio_usado = producto.price
+        order = Order(
+            user_id=user_id,
+            total_amount=total,
+            status='pending'
+        )
+        db.session.add(order)
+        db.session.commit()
+        print(f"Orden creada con ID: {order.id}")
+
+        # Crear items de la orden
+        print("Creando items de la orden...")
+        for item in cart_items:
+            product = Product.query.get(item.product_id)
+            if product:
                 order_item = OrderItem(
-                    order=order,
-                    product_id=cart_item.product_id,
-                    quantity=cart_item.quantity,
-                    price_at_time=precio_usado
+                    order_id=order.id,
+                    product_id=item.product_id,
+                    quantity=item.quantity,
+                    price=product.price
                 )
                 db.session.add(order_item)
-            
-            # Generar orden de compra única
-            buy_order = f"OC-{order.id}"
-            print(f"Número de orden generado: {buy_order}")
-            
-            print("Creando transacción en la base de datos...")
-            # Crear transacción en la base de datos
-            transaction = WebpayTransaction(
-                order=order,
-                buy_order=buy_order,
-                amount=total,
-                session_id=str(session['user_id'])
-            )
-            db.session.add(transaction)
-            db.session.commit()
-            print("Transacción creada en la base de datos")
-            
-            # Iniciar transacción en Webpay
-            return_url = url_for('retorno_webpay', _external=True)
-            print(f"URL de retorno configurada: {return_url}")
-            
-            try:
-                print("\n=== INICIANDO TRANSACCIÓN EN WEBPAY ===")
-                print("Datos que se enviarán a Webpay:")
-                print(f"- Monto: {int(total)}")
-                print(f"- Orden de compra: {buy_order}")
-                print(f"- ID de sesión: {str(session['user_id'])}")
-                print(f"- URL de retorno: {return_url}")
-                
-                webpay_response = webpay.create_transaction(
-                    amount=int(total),
-                    buy_order=buy_order,
-                    session_id=str(session['user_id']),
-                    return_url=return_url
-                )
-                
-                print("\nRespuesta de Webpay recibida:")
-                print(webpay_response)
-                
-                if not webpay_response or 'token' not in webpay_response or 'url' not in webpay_response:
-                    raise ValueError("Respuesta inválida de Webpay")
-                
-                # Actualizar transacción con el token
-                transaction.token_ws = webpay_response['token']
-                db.session.commit()
-                print("Token guardado en la base de datos")
-                
-                # Vaciar el carrito
-                CartItem.query.filter_by(user_id=session['user_id']).delete()
-                db.session.commit()
-                print("Carrito vaciado")
-                
-                print("\n=== PROCESO DE INICIO DE PAGO COMPLETADO ===")
-                return jsonify(webpay_response)
-                
-            except Exception as e:
-                print("\n=== ERROR AL CREAR TRANSACCIÓN WEBPAY ===")
-                print(f"Error: {str(e)}")
-                print(f"Tipo de error: {type(e)}")
-                import traceback
-                print("Traceback completo:")
-                print(traceback.format_exc())
-                db.session.rollback()
-                return jsonify({'error': 'Error al procesar el pago con Webpay'}), 500
-            
-        except Exception as e:
-            print("\n=== ERROR AL CREAR ORDEN ===")
-            print(f"Error: {str(e)}")
-            print(f"Tipo de error: {type(e)}")
-            import traceback
-            print("Traceback completo:")
-            print(traceback.format_exc())
-            db.session.rollback()
-            return jsonify({'error': 'Error al crear la orden'}), 500
-            
+
+        # Generar número de orden
+        buy_order = f"OC-{order.id}"
+        print(f"Número de orden generado: {buy_order}")
+
+        # Crear transacción en la base de datos
+        print("Creando transacción en la base de datos...")
+        transaction = WebpayTransaction(
+            order_id=order.id,
+            buy_order=buy_order,
+            amount=int(total),
+            session_id=str(user_id),
+            status='pending'
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        print("Transacción creada en la base de datos")
+
+        # Configurar URL de retorno
+        return_url = url_for('retorno_webpay', _external=True)
+        print(f"URL de retorno configurada: {return_url}")
+
+        print("\n=== INICIANDO TRANSACCIÓN EN WEBPAY ===")
+        print("Datos que se enviarán a Webpay:")
+        print(f"- Monto: {int(total)}")
+        print(f"- Orden de compra: {buy_order}")
+        print(f"- ID de sesión: {user_id}")
+        print(f"- URL de retorno: {return_url}")
+
+        # Crear transacción en Webpay usando la instancia
+        response = webpay.create_transaction(
+            amount=int(total),
+            buy_order=buy_order,
+            session_id=str(user_id),
+            return_url=return_url
+        )
+
+        print("\nRespuesta de Webpay:")
+        print(json.dumps(response, indent=2))
+
+        # Guardar token en la base de datos
+        transaction.token_ws = response['token']
+        db.session.commit()
+        print("Token guardado en la base de datos")
+
+        # Vaciar carrito
+        CartItem.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        print("Carrito vaciado")
+
+        print("\n=== PROCESO DE INICIO DE PAGO COMPLETADO ===")
+
+        return jsonify(response)
+
     except Exception as e:
-        print("\n=== ERROR GENERAL ===")
-        print(f"Error: {str(e)}")
-        print(f"Tipo de error: {type(e)}")
-        import traceback
-        print("Traceback completo:")
-        print(traceback.format_exc())
+        print(f"\nError en el proceso de pago: {str(e)}")
         db.session.rollback()
-        return jsonify({'error': 'Error al procesar el pago'}), 500
+        return jsonify({'error': str(e)}), 500
 
 def enviar_comprobante(order, user_email):
     """Envía el comprobante de pago por correo electrónico"""
@@ -1025,6 +996,30 @@ def get_categories():
             'icon': cat.icon
         })
     return jsonify(result)
+
+@app.route('/checkout')
+def checkout():
+    if not session.get('user_id'):
+        flash('Debes iniciar sesión para continuar con la compra.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Verificar si hay items en el carrito
+    cart_items = CartItem.query.filter_by(user_id=session['user_id']).all()
+    if not cart_items:
+        flash('Tu carrito está vacío. Agrega productos antes de continuar.', 'info')
+        return redirect(url_for('carrito'))
+    
+    # Calcular el total
+    total = Decimal('0')
+    for item in cart_items:
+        product = Product.query.get(item.product_id)
+        if product:
+            total += Decimal(str(product.price)) * Decimal(str(item.quantity))
+    
+    return render_template('checkout.html', 
+                         user=session.get('user'),
+                         cart_items=cart_items,
+                         total=total)
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == '__main__':
