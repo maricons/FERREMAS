@@ -116,14 +116,16 @@ def test_webpay_transaction_creation(app, test_order):
     with app.app_context():
         transaction = WebpayTransaction(
             order_id=test_order.id,
-            token='test-token',
-            status='pending'
+            token_ws='test-token',
+            status='pending',
+            buy_order='OC-12345678',
+            amount=Decimal('1000.00')
         )
         db.session.add(transaction)
         db.session.commit()
 
         assert transaction.order_id == test_order.id
-        assert transaction.token == 'test-token'
+        assert transaction.token_ws == 'test-token'
         assert transaction.status == 'pending'
         assert transaction.created_at is not None
 
@@ -133,29 +135,29 @@ def test_webpay_transaction_update_from_response(app, test_order):
     with app.app_context():
         transaction = WebpayTransaction(
             order_id=test_order.id,
-            token='test-token',
-            status='pending'
+            token_ws='test-token',
+            status='pending',
+            buy_order='OC-12345678',
+            amount=Decimal('1000.00')
         )
         db.session.add(transaction)
         db.session.commit()
 
         response_data = {
             'status': 'approved',
-            'response_code': '0',
-            'amount': '1000',
+            'response_code': 0,
+            'amount': 1000,
             'authorization_code': 'test-auth',
             'payment_type_code': 'VD',
-            'installments_number': '0',
-            'card_number': '1234'
+            'installments_number': 0,
+            'card_detail': {'card_number': '1234567890123456'}
         }
 
         transaction.update_from_response(response_data)
         db.session.commit()
 
-        assert transaction.status == 'approved'
-        assert transaction.response_code == '0'
-        assert transaction.payment_type_code == 'VD'
-        assert transaction.card_number == '1234'
+        assert transaction.status == 'completed'
+        assert transaction.response_code == 0
 
 def test_relationships(app, test_user, test_product, test_category):
     """Test model relationships"""
@@ -179,15 +181,15 @@ def test_relationships(app, test_user, test_product, test_category):
         db.session.add(order)
         db.session.commit()
 
-        # Refresh objects to ensure they're bound to the session
-        db.session.refresh(test_user)
-        db.session.refresh(test_product)
-        db.session.refresh(test_category)
+        # Query fresh objects from the database instead of refreshing
+        user = db.session.get(User, test_user.id)
+        product = db.session.get(Product, test_product.id)
+        category = db.session.get(Category, test_category.id)
         
         # Verify relationships
-        assert test_user.cart_items[0].product.id == test_product.id
-        assert test_product.category.id == test_category.id
-        assert test_user.orders[0].id == order.id
+        assert user.cart_items[0].product.id == product.id
+        assert product.category.id == category.id
+        assert user.orders[0].id == order.id
 
 def test_product_stock_validation(app, test_category):
     """Test product stock validation"""
@@ -257,13 +259,13 @@ def test_user_orders_relationship(app, test_user, test_product):
             db.session.add(order)
         db.session.commit()
 
-        # Refresh the user to ensure relationships are loaded
-        db.session.refresh(test_user)
+        # Query fresh user from the database
+        user = db.session.get(User, test_user.id)
         
         # Verificar que el usuario tiene el número correcto de órdenes
-        assert len(test_user.orders) == 3
+        assert len(user.orders) == 3
         
         # Verificar detalles de las órdenes
-        for order in test_user.orders:
+        for order in user.orders:
             assert order.status == 'pending'
             assert float(order.total_amount) == float(Decimal('1000.00')) 

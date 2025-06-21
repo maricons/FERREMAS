@@ -104,7 +104,7 @@ def test_logout(client, test_user):
     # Then logout
     response = client.get('/logout', follow_redirects=True)
     assert response.status_code == 200
-    assert 'logged out'.encode('utf-8') in response.data.lower()
+    assert 'has cerrado sesión'.encode('utf-8') in response.data.lower()
     assert 'user' not in session
 
 def test_cart_page(client):
@@ -174,7 +174,7 @@ def test_remove_from_cart(client, test_user, test_product, app):
         assert response.status_code == 204
         
         # Verify item was removed
-        assert CartItem.query.get(item_id) is None
+        assert db.session.get(CartItem, item_id) is None
 
 def test_currency_converter_page(client):
     """Test currency converter page loads"""

@@ -115,7 +115,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 # Inicializar Webpay Plus
-webpay = WebpayPlus(app)
+webpay = WebpayPlus()
 
 # Inicializar el conversor de monedas
 currency_converter = CurrencyConverter()

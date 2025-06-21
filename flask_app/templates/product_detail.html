@@ -56,6 +56,13 @@
             <h1 class="mb-3">{{ product.name }}</h1>
             <p class="h3 text-primary mb-4">${{ '{:,.0f}'.format(product.price) }}</p>
             
+            {% if product.description %}
+            <div class="mb-4">
+                <h5>Descripción:</h5>
+                <p>{{ product.description }}</p>
+            </div>
+            {% endif %}
+            
             <div class="quantity-control">
                 <button id="decrease-quantity" type="button">-</button>
                 <input type="number" id="quantity" value="1" min="1" max="99">
