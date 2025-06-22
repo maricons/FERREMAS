@@ -3,23 +3,24 @@ FERREMAS Flask Application Package
 """
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask_mail import Mail
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+
+from .auth import auth_bp
+from .currency_converter import CurrencyConverter
 from .extensions import db
 from .models import (
-    User,
-    Product,
+    CartItem,
     Category,
     Order,
     OrderItem,
-    CartItem,
+    Product,
+    User,
     WebpayTransaction,
 )
-from .auth import auth_bp
 from .routes import main_bp
 from .webpay_plus import WebpayPlus
-from .currency_converter import CurrencyConverter
 
 # Initialize extensions
 mail = Mail()

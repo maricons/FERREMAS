@@ -1,13 +1,15 @@
-import pytest
 from datetime import datetime
 from decimal import Decimal
+
+import pytest
+
 from flask_app import (
-    User,
-    Product,
+    CartItem,
     Category,
     Order,
     OrderItem,
-    CartItem,
+    Product,
+    User,
     WebpayTransaction,
 )
 

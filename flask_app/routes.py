@@ -1,22 +1,24 @@
+import json
+from decimal import Decimal
+
 from flask import (
     Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
     session,
-    jsonify,
-    abort,
+    url_for,
 )
-from werkzeug.security import generate_password_hash, check_password_hash
-from .models import User, Product, Category, CartItem, Order, WebpayTransaction
-from .extensions import db
-from .currency_converter import CurrencyConverter
 from flask_mail import Message
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from .currency_converter import CurrencyConverter
+from .extensions import db
+from .models import CartItem, Category, Order, Product, User, WebpayTransaction
 from .webpay_plus import WebpayPlus
-from decimal import Decimal
-import json
 
 main_bp = Blueprint("main", __name__)
 

@@ -1,17 +1,20 @@
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from flask import session, url_for
 import json
 from decimal import Decimal
-from flask_app import db, User, Product, Category, CartItem, Order, WebpayTransaction
+
+from flask import session, url_for
 from werkzeug.security import generate_password_hash
+
+from flask_app import CartItem, Category, Order, Product, User, WebpayTransaction, db
 
 
 def test_home_page(client):

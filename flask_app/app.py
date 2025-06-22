@@ -1,29 +1,31 @@
+import json
+import logging
+import os
+from datetime import datetime
+from decimal import Decimal
+
+from dotenv import load_dotenv
+from flasgger import Swagger
 from flask import (
     Flask,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
     session,
-    jsonify,
+    url_for,
 )
-from werkzeug.security import generate_password_hash, check_password_hash
-from marshmallow import Schema, fields
-import os
-from werkzeug.utils import secure_filename
-from .auth import auth_bp
-from dotenv import load_dotenv
-from .webpay_plus import WebpayPlus
-from decimal import Decimal
-import json
-from .extensions import db
 from flask_mail import Mail, Message
-from datetime import datetime
 from flask_migrate import Migrate
+from marshmallow import Schema, fields
+from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
+
+from .auth import auth_bp
 from .currency_converter import CurrencyConverter
-import logging
-from flasgger import Swagger
+from .extensions import db
+from .webpay_plus import WebpayPlus
 
 # Configuración del logger
 logging.basicConfig(level=logging.INFO)
@@ -135,13 +137,13 @@ currency_converter = CurrencyConverter()
 
 # Importar modelos después de inicializar db
 from .models import (
-    Order,
-    OrderItem,
-    WebpayTransaction,
-    Product,
-    User,
     CartItem,
     Category,
+    Order,
+    OrderItem,
+    Product,
+    User,
+    WebpayTransaction,
 )
 
 

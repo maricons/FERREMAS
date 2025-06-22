@@ -1,24 +1,26 @@
 # tests/conftest.py
 
-import pytest
-import sys
 import os
-from pathlib import Path
+import sys
 from datetime import datetime
 from decimal import Decimal
-from flask_app import create_app, db, User, Product, Category, CartItem, Order
-from werkzeug.security import generate_password_hash
+from pathlib import Path
 from urllib.parse import quote_plus
+
+import pytest
+from werkzeug.security import generate_password_hash
+
+from flask_app import CartItem, Category, Order, Product, User, create_app, db
 
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from flask import Flask
-
 # Force UTF-8 encoding for all string operations
 import codecs
+
+from flask import Flask
 
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer)
 sys.stdin = codecs.getreader("utf-8")(sys.stdin.buffer)

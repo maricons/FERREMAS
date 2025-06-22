@@ -1,6 +1,7 @@
-from .models import Product
-from .extensions import db
 from app import app
+
+from .extensions import db
+from .models import Product
 
 
 def init_db():

@@ -1,14 +1,14 @@
+from .app import app
+from .extensions import db
 from .models import (
-    Category,
-    Product,
-    User,
     CartItem,
+    Category,
     Order,
     OrderItem,
+    Product,
+    User,
     WebpayTransaction,
 )
-from .extensions import db
-from .app import app
 
 
 def reset_database():

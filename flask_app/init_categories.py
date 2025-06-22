@@ -1,6 +1,6 @@
-from .models import Category
-from .extensions import db
 from .app import app
+from .extensions import db
+from .models import Category
 
 
 def init_categories():

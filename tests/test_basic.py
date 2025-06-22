@@ -2,10 +2,11 @@
 Test básico para verificar que el entorno de testing funciona
 """
 
-import pytest
-import sys
 import os
+import sys
 from pathlib import Path
+
+import pytest
 
 # Add parent directory to Python path
 parent_dir = str(Path(__file__).parent.parent)
@@ -66,7 +67,7 @@ def test_flask_app_import():
 def test_database_models():
     """Test para verificar que los modelos se pueden importar"""
     try:
-        from flask_app.models import User, Product, Category
+        from flask_app.models import Category, Product, User
 
         assert User is not None
         assert Product is not None
