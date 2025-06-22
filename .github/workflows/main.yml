@@ -93,7 +93,7 @@ jobs:
     # Paso 7: Subir reporte de cobertura como artifact (opcional)
     - name: Subir reporte de cobertura
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
