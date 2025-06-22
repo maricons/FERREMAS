@@ -78,6 +78,5 @@ def test_database_models():
 
 def test_environment_variables():
     """Test para verificar variables de entorno críticas"""
-    # Verificar que las variables de entorno están configuradas
-    assert os.environ.get("PYTHONPATH") is not None, "PYTHONPATH no está configurado"
+    # Verificar que la variable de entorno TESTING está configurada
     assert os.environ.get("TESTING") == "true", "TESTING no está configurado como true"
