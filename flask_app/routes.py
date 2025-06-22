@@ -1,7 +1,4 @@
-import json
-import os
 from decimal import Decimal
-
 from flask import (
     Blueprint,
     abort,
@@ -15,7 +12,7 @@ from flask import (
 )
 
 from .extensions import db
-from .models import CartItem, Category, Order, Product, User, WebpayTransaction
+from .models import CartItem, Category, Order, Product, WebpayTransaction
 from .webpay_plus import WebpayPlus
 
 main_bp = Blueprint("main", __name__)

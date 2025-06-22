@@ -1,6 +1,5 @@
 import json
 import sys
-from decimal import Decimal
 from pathlib import Path
 
 # Add parent directory to Python path to find the flask-app package
@@ -8,9 +7,9 @@ parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from flask import session, url_for
+from flask import session
 
-from flask_app import CartItem, Category, Order, Product, User, WebpayTransaction, db
+from flask_app import CartItem, Order, User, WebpayTransaction, db
 
 
 def test_home_page(client):
