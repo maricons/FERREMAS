@@ -2,6 +2,7 @@ from .app import app
 from .extensions import db
 from .models import Category
 
+
 def reset_database():
     with app.app_context():
         # Eliminar todas las tablas
