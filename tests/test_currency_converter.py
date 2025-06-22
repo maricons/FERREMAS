@@ -5,12 +5,12 @@ from pathlib import Path
 import pytest
 import requests
 
+from flask_app.currency_converter import CurrencyConverter
+
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
-
-from flask_app.currency_converter import CurrencyConverter
 
 
 @pytest.fixture

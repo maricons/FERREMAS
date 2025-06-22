@@ -25,7 +25,8 @@ def create_test_database():
 
         # Crear nueva base de datos con configuración regional de Spanish_Chile
         cur.execute(
-            "CREATE DATABASE ferremas_test WITH ENCODING 'UTF8' LC_COLLATE 'Spanish_Chile.1252' LC_CTYPE 'Spanish_Chile.1252'"
+            "CREATE DATABASE ferremas_test WITH ENCODING 'UTF8' "
+            "LC_COLLATE 'Spanish_Chile.1252' LC_CTYPE 'Spanish_Chile.1252'"
         )
         print("Base de datos de prueba creada exitosamente!")
 

@@ -4,12 +4,12 @@ from pathlib import Path
 import pytest
 import requests
 
+from flask_app.webpay_plus import WebpayPlus
+
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
-
-from flask_app.webpay_plus import WebpayPlus
 
 
 def test_webpay_initialization():

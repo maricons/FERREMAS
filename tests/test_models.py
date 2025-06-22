@@ -209,7 +209,8 @@ def test_product_stock_validation(app, test_category):
     from flask_app import db
 
     with app.app_context():
-        # Since SQLAlchemy doesn't have built-in validation, we'll test that negative stock is allowed
+        # Since SQLAlchemy doesn't have built-in validation, we'll test that
+        # negative stock is allowed
         product = Product(
             name="Test Product",
             description="Test Description",
@@ -229,7 +230,8 @@ def test_product_price_validation(app, test_category):
     from flask_app import db
 
     with app.app_context():
-        # Since SQLAlchemy doesn't have built-in validation, we'll test that negative price is allowed
+        # Since SQLAlchemy doesn't have built-in validation, we'll test that
+        # negative price is allowed
         product = Product(
             name="Test Product",
             description="Test Description",
@@ -249,7 +251,8 @@ def test_order_status_validation(app, test_user):
     from flask_app import db
 
     with app.app_context():
-        # Since SQLAlchemy doesn't have built-in validation, we'll test that invalid status is allowed
+        # Since SQLAlchemy doesn't have built-in validation, we'll test that
+        # invalid status is allowed
         order = Order(
             user_id=test_user.id,
             total_amount=Decimal("99.99"),
