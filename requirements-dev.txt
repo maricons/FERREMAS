@@ -1,0 +1,9 @@
+# Framework de Pruebas
+pytest
+pytest-flask
+pytest-mock
+
+# Herramientas de Calidad de Código y Formateo
+black
+flake8
+isort
