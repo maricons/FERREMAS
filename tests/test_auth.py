@@ -1,7 +1,8 @@
 import sys
 from pathlib import Path
 
-from flask import get_flashed_messages, session, url_for
+import pytest
+from flask import session
 
 from flask_app.models import User
 

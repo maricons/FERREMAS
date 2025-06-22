@@ -302,16 +302,16 @@ def register():
                 db.session.commit()
                 flash("¡Registro exitoso! Ahora puede iniciar sesión.", "success")
                 return redirect(url_for("login"))
-            except Exception as e:
+            except Exception as _:
                 db.session.rollback()
-                logger.error("Error al crear usuario: {str(e)}")
+                logger.error("Error al crear usuario")
                 flash(
                     "Error al crear la cuenta. Por favor, intente nuevamente.", "danger"
                 )
                 return redirect(url_for("register"))
 
-        except Exception as e:
-            logger.error("Error en el registro: {str(e)}")
+        except Exception as _:
+            logger.error("Error en el registro")
             flash(
                 "Error al procesar el registro. Por favor, intente nuevamente.",
                 "danger",
@@ -522,11 +522,11 @@ def add_to_cart():
         logger.info("Producto {product_id} añadido exitosamente al carrito")
         return jsonify(item_data), 201
 
-    except ValueError as e:
-        logger.error("Error de valor: {str(e)}")
+    except ValueError as _:
+        logger.error("Error de valor")
         return jsonify({"error": "Datos inválidos"}), 400
-    except Exception as e:
-        logger.error("Error al añadir al carrito: {str(e)}")
+    except Exception as _:
+        logger.error("Error al añadir al carrito")
         db.session.rollback()
         return jsonify({"error": "Error interno del servidor"}), 500
 
@@ -699,10 +699,10 @@ def iniciar_pago():
 
         return jsonify(response)
 
-    except Exception as e:
-        print("\nError en el proceso de pago: {str(e)}")
+    except Exception as _:
+        print("\nError en el proceso de pago")
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(_)}), 500
 
 
 def enviar_comprobante(order, user_email):
@@ -722,10 +722,10 @@ def enviar_comprobante(order, user_email):
         mail.send(msg)
         print("Correo enviado exitosamente")
 
-    except Exception as e:
+    except Exception as _:
         print("\n=== ERROR AL ENVIAR CORREO ===")
-        print("Error: {str(e)}")
-        print("Tipo de error: {type(e)}")
+        print("Error: {str(_)}")
+        print("Tipo de error: {type(_)}")
         import traceback
 
         print("Traceback completo:")
@@ -812,10 +812,10 @@ def retorno_webpay():
 
         return redirect(url_for("comprobante_pago", status=status))
 
-    except Exception as e:
+    except Exception as _:
         print("\n=== ERROR EN RETORNO WEBPAY ===")
-        print("Error: {str(e)}")
-        print("Tipo de error: {type(e)}")
+        print("Error: {str(_)}")
+        print("Tipo de error: {type(_)}")
         import traceback
 
         print("Traceback completo:")
@@ -841,8 +841,8 @@ def currency_converter_page():
         return render_template(
             "currency_converter.html", currencies=currencies, user=user
         )
-    except Exception as e:
-        logger.error("Error al cargar el conversor de monedas: {str(e)}")
+    except Exception as _:
+        logger.error("Error al cargar el conversor de monedas")
         flash("Error al cargar el conversor de monedas", "danger")
         return redirect(url_for("home"))
 
@@ -894,15 +894,15 @@ def convert_currency():
             result = currency_converter.convert_to_clp(amount, from_currency)
             logger.info("Conversión exitosa: {result}")
             return jsonify(result)
-        except ValueError as e:
-            logger.error("Error en la conversión: {str(e)}")
-            return jsonify({"error": str(e)}), 400
-        except Exception as e:
-            logger.error("Error inesperado en la conversión: {str(e)}")
+        except ValueError as _:
+            logger.error("Error en la conversión")
+            return jsonify({"error": str(_)}), 400
+        except Exception as _:
+            logger.error("Error inesperado en la conversión")
             return jsonify({"error": "Error al realizar la conversión"}), 500
 
-    except Exception as e:
-        logger.error("Error general en /api/convert: {str(e)}")
+    except Exception as _:
+        logger.error("Error general en /api/convert")
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -926,7 +926,7 @@ def get_currencies():
     try:
         currencies = currency_converter.get_available_currencies()
         return jsonify(currencies)
-    except Exception as e:
+    except Exception as _:
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -1025,8 +1025,8 @@ def send_contact_email():
 
         return jsonify({"message": "Mensaje enviado correctamente"}), 200
 
-    except Exception as e:
-        logger.error("Error al enviar correo de contacto: {str(e)}")
+    except Exception as _:
+        logger.error("Error al enviar correo de contacto")
         return jsonify({"error": "Error al enviar el mensaje"}), 500
 
 

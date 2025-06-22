@@ -1,6 +1,4 @@
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 from flask_app import (
     CartItem,

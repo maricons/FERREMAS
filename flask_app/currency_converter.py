@@ -38,8 +38,8 @@ class CurrencyConverter:
                     "Credenciales de la API del Banco Central no configuradas"
                 )
             logger.info("CurrencyConverter inicializado correctamente")
-        except Exception as e:
-            logger.error("Error al inicializar CurrencyConverter: {str(e)}")
+        except Exception as _:
+            logger.error("Error al inicializar CurrencyConverter")
             raise
 
     @lru_cache(maxsize=32)
@@ -99,8 +99,8 @@ class CurrencyConverter:
             # Procesar la respuesta
             try:
                 data = response.json()
-            except json.JSONDecodeError as e:
-                logger.error("Error al decodificar JSON de la respuesta: {str(e)}")
+            except json.JSONDecodeError as _:
+                logger.error("Error al decodificar JSON de la respuesta")
                 logger.error("Respuesta recibida: {response.text}")
                 raise ValueError("Error al procesar la respuesta de la API")
 
@@ -129,19 +129,19 @@ class CurrencyConverter:
             # Tomar el valor más reciente
             try:
                 latest_value = float(valid_observations[-1]["value"])
-            except (KeyError, ValueError, IndexError) as e:
-                logger.error("Error al obtener el valor más reciente: {str(e)}")
+            except (KeyError, ValueError, IndexError) as _:
+                logger.error("Error al obtener el valor más reciente")
                 raise ValueError("Error al procesar el valor de la tasa de cambio")
 
             logger.info("Tasa de cambio obtenida para {currency_code}: {latest_value}")
             return latest_value
 
-        except requests.RequestException as e:
-            logger.error("Error de conexión con la API: {str(e)}")
-            raise ValueError("Error al conectar con la API del Banco Central: {str(e)}")
-        except Exception as e:
-            logger.error("Error inesperado: {str(e)}")
-            raise ValueError("Error inesperado: {str(e)}")
+        except requests.RequestException as _:
+            logger.error("Error de conexión con la API")
+            raise ValueError("Error al conectar con la API del Banco Central")
+        except Exception as _:
+            logger.error("Error inesperado")
+            raise ValueError("Error inesperado")
 
     def convert_to_clp(self, amount, from_currency):
         """
@@ -174,9 +174,9 @@ class CurrencyConverter:
             # Obtener la tasa de cambio
             try:
                 rate = self.get_exchange_rate(from_currency)
-            except ValueError as e:
-                logger.error("Error al obtener tasa de cambio: {str(e)}")
-                raise ValueError("Error al obtener tasa de cambio: {str(e)}")
+            except ValueError as _:
+                logger.error("Error al obtener tasa de cambio")
+                raise ValueError("Error al obtener tasa de cambio")
 
             # Realizar la conversión
             converted_amount = amount * rate
@@ -192,12 +192,12 @@ class CurrencyConverter:
             logger.info("Conversión exitosa: {result}")
             return result
 
-        except ValueError as e:
-            logger.error("Error en la conversión: {str(e)}")
-            raise ValueError("Error en la conversión: {str(e)}")
-        except Exception as e:
-            logger.error("Error inesperado en la conversión: {str(e)}")
-            raise ValueError("Error inesperado: {str(e)}")
+        except ValueError as _:
+            logger.error("Error en la conversión")
+            raise ValueError("Error en la conversión")
+        except Exception as _:
+            logger.error("Error inesperado en la conversión")
+            raise ValueError("Error inesperado")
 
     def get_available_currencies(self):
         """

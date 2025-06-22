@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 import pytest
 from werkzeug.security import generate_password_hash
 
-from flask_app import CartItem, Category, Order, Product, User, create_app, db
+from flask_app import CartItem, Category, Order, Product, User, db
 
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
@@ -18,8 +18,6 @@ if parent_dir not in sys.path:
 
 # Force UTF-8 encoding for all string operations
 import codecs
-
-from flask import Flask
 
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer)
 sys.stdin = codecs.getreader("utf-8")(sys.stdin.buffer)

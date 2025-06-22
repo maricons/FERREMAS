@@ -1,3 +1,3 @@
 """Configuration package for the Flask application."""
 
-from . import default
+# Configuración de la aplicación
