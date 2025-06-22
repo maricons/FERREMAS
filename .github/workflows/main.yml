@@ -86,6 +86,8 @@ jobs:
         MAIL_USE_TLS: ${{ secrets.MAIL_USE_TLS }}
         MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
         MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        BDE_EMAIL: ${{ secrets.BDE_EMAIL }}
+        BDE_PASSWORD: ${{ secrets.BDE_PASSWORD }}
         # Variables adicionales que puedan estar en .env
         FLASK_ENV: test
         FLASK_APP: flask_app.app
@@ -111,6 +113,9 @@ jobs:
         SQLALCHEMY_DATABASE_URI: "sqlite:///:memory:"
         SQLALCHEMY_TRACK_MODIFICATIONS: false
         WTF_CSRF_ENABLED: false
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        BDE_EMAIL: ${{ secrets.BDE_EMAIL }}
+        BDE_PASSWORD: ${{ secrets.BDE_PASSWORD }}
       run: |
         # Ejecutar tests con coverage
         echo "Generando reporte de cobertura..."

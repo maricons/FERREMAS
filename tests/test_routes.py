@@ -95,17 +95,18 @@ def test_register_duplicate_email(client, test_user):
 
 def test_logout(client, test_user):
     """Test logout functionality"""
-    # First login
-    client.post('/login', data={
-        'email': test_user.email,
-        'password': 'password123'
-    })
-    
-    # Then logout
-    response = client.get('/logout', follow_redirects=True)
-    assert response.status_code == 200
-    assert 'has cerrado sesión'.encode('utf-8') in response.data.lower()
-    assert 'user' not in session
+    with client:  # Esto mantiene el contexto de la sesión
+        # First login
+        client.post('/login', data={
+            'email': test_user.email,
+            'password': 'password123'
+        })
+        
+        # Then logout
+        response = client.get('/logout', follow_redirects=True)
+        assert response.status_code == 200
+        assert 'has cerrado sesión'.encode('utf-8') in response.data.lower()
+        assert 'user' not in session
 
 def test_cart_page(client):
     """Test cart page loads"""
