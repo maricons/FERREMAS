@@ -1,8 +1,6 @@
 import json
 import logging
-import os
 import uuid
-from datetime import datetime
 
 from dotenv import load_dotenv
 from transbank.common.integration_type import IntegrationType
@@ -111,7 +109,7 @@ class WebpayPlus:
     def status(self, token):
         """Consulta el estado de una transacción"""
         try:
-            print(f"\n=== CONSULTANDO ESTADO DE TRANSACCIÓN ===")
+            print("\n=== CONSULTANDO ESTADO DE TRANSACCIÓN ===")
             print(f"Token: {token}")
 
             response = self.tx.status(token=token)
@@ -128,7 +126,7 @@ class WebpayPlus:
     def refund(self, token, amount):
         """Realiza la devolución de una transacción"""
         try:
-            print(f"\n=== INICIANDO DEVOLUCIÓN ===")
+            print("\n=== INICIANDO DEVOLUCIÓN ===")
             print(f"Token: {token}")
             print(f"Monto: {amount}")
 

@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:

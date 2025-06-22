@@ -5,10 +5,8 @@ FERREMAS Flask Application Package
 from flask import Flask
 from flask_mail import Mail
 from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
 
 from .auth import auth_bp
-from .currency_converter import CurrencyConverter
 from .extensions import db
 from .models import (
     CartItem,

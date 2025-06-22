@@ -1,14 +1,8 @@
 # tests/conftest.py
 
-import os
 import sys
-from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 from urllib.parse import quote_plus
-
-import pytest
-from werkzeug.security import generate_password_hash
 
 from flask_app import CartItem, Category, Order, Product, User, create_app, db
 
@@ -40,7 +34,7 @@ def get_test_db_url():
     host = quote_plus(os.environ["POSTGRES_HOST"])
     port = quote_plus(os.environ["POSTGRES_PORT"])
     db = quote_plus(os.environ["POSTGRES_DB"])
-    return f"postgresql://{user}:{password}@{host}:{port}/{db}?client_encoding=utf8"
+    return "postgresql://{user}:{password}@{host}:{port}/{db}?client_encoding=utf8"
 
 
 @pytest.fixture

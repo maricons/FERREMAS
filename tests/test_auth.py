@@ -1,11 +1,8 @@
 import sys
 from pathlib import Path
 
-import pytest
 from flask import get_flashed_messages, session, url_for
-from werkzeug.security import check_password_hash, generate_password_hash
 
-from flask_app.auth import auth_bp
 from flask_app.models import User
 
 # Add parent directory to Python path to find the flask-app package

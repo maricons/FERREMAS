@@ -1,8 +1,5 @@
-import json
 import logging
 import os
-from datetime import datetime
-from decimal import Decimal
 
 from dotenv import load_dotenv
 from flasgger import Swagger
@@ -42,7 +39,7 @@ app.register_blueprint(auth_bp)
 
 # Configuración para subida de archivos
 UPLOAD_FOLDER = "static/uploads"
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gi"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # Asegurarse de que el directorio de uploads existe
@@ -90,7 +87,7 @@ swagger_template = {
                 "user_id": {"type": "integer"},
                 "product_id": {"type": "integer"},
                 "quantity": {"type": "integer"},
-                "product": {"$ref": "#/definitions/Product"},
+                "product": {"$re": "#/definitions/Product"},
             },
         },
         "Category": {
@@ -304,14 +301,14 @@ def register():
                 return redirect(url_for("login"))
             except Exception as e:
                 db.session.rollback()
-                logger.error(f"Error al crear usuario: {str(e)}")
+                logger.error("Error al crear usuario: {str(e)}")
                 flash(
                     "Error al crear la cuenta. Por favor, intente nuevamente.", "danger"
                 )
                 return redirect(url_for("register"))
 
         except Exception as e:
-            logger.error(f"Error en el registro: {str(e)}")
+            logger.error("Error en el registro: {str(e)}")
             flash(
                 "Error al procesar el registro. Por favor, intente nuevamente.",
                 "danger",
@@ -381,7 +378,7 @@ def create_product():
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
             file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
-            image_path = f"uploads/{filename}"
+            image_path = "uploads/{filename}"
     elif "imageUrl" in request.form and request.form.get("imageUrl"):
         image_path = request.form.get("imageUrl")
 
@@ -409,7 +406,7 @@ def update_product(id):
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
             file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
-            product.image = f"uploads/{filename}"
+            product.image = "uploads/{filename}"
     elif "imageUrl" in request.form and request.form.get("imageUrl"):
         product.image = request.form.get("imageUrl")
 
@@ -467,7 +464,7 @@ def add_to_cart():
 
     try:
         data = request.get_json()
-        logger.info(f"Datos recibidos en add_to_cart: {data}")
+        logger.info("Datos recibidos en add_to_cart: {data}")
 
         if not data:
             logger.error("No se recibieron datos JSON")
@@ -482,18 +479,18 @@ def add_to_cart():
         quantity = int(data.get("quantity", 1))
 
         logger.info(
-            f"Intentando añadir producto {product_id} al carrito del usuario {user_id}"
+            "Intentando añadir producto {product_id} al carrito del usuario {user_id}"
         )
 
         # Validar que el producto existe
         product = Product.query.get(product_id)
         if not product:
-            logger.error(f"Producto {product_id} no encontrado")
+            logger.error("Producto {product_id} no encontrado")
             return jsonify({"error": "Producto no encontrado"}), 404
 
         # Validar que hay stock disponible
         if product.stock < quantity:
-            logger.error(f"Stock insuficiente para el producto {product_id}")
+            logger.error("Stock insuficiente para el producto {product_id}")
             return jsonify({"error": "No hay suficiente stock disponible"}), 400
 
         # Verificar si el producto ya está en el carrito
@@ -504,14 +501,14 @@ def add_to_cart():
         if cart_item:
             # Actualizar cantidad si ya existe
             cart_item.quantity += quantity
-            logger.info(f"Actualizada cantidad del producto {product_id} en el carrito")
+            logger.info("Actualizada cantidad del producto {product_id} en el carrito")
         else:
             # Crear nuevo item en el carrito
             cart_item = CartItem(
                 user_id=user_id, product_id=product_id, quantity=quantity
             )
             db.session.add(cart_item)
-            logger.info(f"Añadido nuevo producto {product_id} al carrito")
+            logger.info("Añadido nuevo producto {product_id} al carrito")
 
         db.session.commit()
 
@@ -519,14 +516,14 @@ def add_to_cart():
         item_data = cart_item_schema.dump(cart_item)
         item_data["product"] = product_schema.dump(product)
 
-        logger.info(f"Producto {product_id} añadido exitosamente al carrito")
+        logger.info("Producto {product_id} añadido exitosamente al carrito")
         return jsonify(item_data), 201
 
     except ValueError as e:
-        logger.error(f"Error de valor: {str(e)}")
+        logger.error("Error de valor: {str(e)}")
         return jsonify({"error": "Datos inválidos"}), 400
     except Exception as e:
-        logger.error(f"Error al añadir al carrito: {str(e)}")
+        logger.error("Error al añadir al carrito: {str(e)}")
         db.session.rollback()
         return jsonify({"error": "Error interno del servidor"}), 500
 
@@ -609,7 +606,7 @@ def iniciar_pago():
 
         user_id = session["user_id"]
         print("\n=== INICIANDO PROCESO DE PAGO ===")
-        print(f"Usuario autenticado: {user_id}")
+        print("Usuario autenticado: {user_id}")
 
         # Obtener items del carrito
         cart_items = CartItem.query.filter_by(user_id=user_id).all()
@@ -624,14 +621,14 @@ def iniciar_pago():
             if product:
                 total += Decimal(str(product.price)) * Decimal(str(item.quantity))
 
-        print(f"Total calculado: {total}")
+        print("Total calculado: {total}")
 
         # Crear orden
         print("Creando orden en la base de datos...")
         order = Order(user_id=user_id, total_amount=total, status="pending")
         db.session.add(order)
         db.session.commit()
-        print(f"Orden creada con ID: {order.id}")
+        print("Orden creada con ID: {order.id}")
 
         # Crear items de la orden
         print("Creando items de la orden...")
@@ -647,8 +644,8 @@ def iniciar_pago():
                 db.session.add(order_item)
 
         # Generar número de orden
-        buy_order = f"OC-{order.id}"
-        print(f"Número de orden generado: {buy_order}")
+        buy_order = "OC-{order.id}"
+        print("Número de orden generado: {buy_order}")
 
         # Crear transacción en la base de datos
         print("Creando transacción en la base de datos...")
@@ -665,14 +662,14 @@ def iniciar_pago():
 
         # Configurar URL de retorno
         return_url = url_for("retorno_webpay", _external=True)
-        print(f"URL de retorno configurada: {return_url}")
+        print("URL de retorno configurada: {return_url}")
 
         print("\n=== INICIANDO TRANSACCIÓN EN WEBPAY ===")
         print("Datos que se enviarán a Webpay:")
-        print(f"- Monto: {int(total)}")
-        print(f"- Orden de compra: {buy_order}")
-        print(f"- ID de sesión: {user_id}")
-        print(f"- URL de retorno: {return_url}")
+        print("- Monto: {int(total)}")
+        print("- Orden de compra: {buy_order}")
+        print("- ID de sesión: {user_id}")
+        print("- URL de retorno: {return_url}")
 
         # Crear transacción en Webpay usando la instancia
         response = webpay.create_transaction(
@@ -700,7 +697,7 @@ def iniciar_pago():
         return jsonify(response)
 
     except Exception as e:
-        print(f"\nError en el proceso de pago: {str(e)}")
+        print("\nError en el proceso de pago: {str(e)}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -709,7 +706,7 @@ def enviar_comprobante(order, user_email):
     """Envía el comprobante de pago por correo electrónico"""
     try:
         print("\n=== ENVIANDO COMPROBANTE POR EMAIL ===")
-        print(f"Enviando comprobante a: {user_email}")
+        print("Enviando comprobante a: {user_email}")
 
         msg = Message("Comprobante de Pago - Ferremas", recipients=[user_email])
 
@@ -724,8 +721,8 @@ def enviar_comprobante(order, user_email):
 
     except Exception as e:
         print("\n=== ERROR AL ENVIAR CORREO ===")
-        print(f"Error: {str(e)}")
-        print(f"Tipo de error: {type(e)}")
+        print("Error: {str(e)}")
+        print("Tipo de error: {type(e)}")
         import traceback
 
         print("Traceback completo:")
@@ -782,8 +779,8 @@ def retorno_webpay():
             response_code = getattr(response, "response_code", None)
             amount = getattr(response, "amount", None)
 
-        print(f"Código de respuesta: {response_code}")
-        print(f"Monto: {amount}")
+        print("Código de respuesta: {response_code}")
+        print("Monto: {amount}")
 
         # Actualizar la transacción con la respuesta
         if response_code == 0:
@@ -801,7 +798,7 @@ def retorno_webpay():
 
             status = "success"
         else:
-            print(f"Transacción fallida con código: {response_code}")
+            print("Transacción fallida con código: {response_code}")
             transaction.status = "failed"
             transaction.response_code = response_code
             transaction.order.status = "failed"
@@ -813,9 +810,9 @@ def retorno_webpay():
         return redirect(url_for("comprobante_pago", status=status))
 
     except Exception as e:
-        print(f"\n=== ERROR EN RETORNO WEBPAY ===")
-        print(f"Error: {str(e)}")
-        print(f"Tipo de error: {type(e)}")
+        print("\n=== ERROR EN RETORNO WEBPAY ===")
+        print("Error: {str(e)}")
+        print("Tipo de error: {type(e)}")
         import traceback
 
         print("Traceback completo:")
@@ -842,7 +839,7 @@ def currency_converter_page():
             "currency_converter.html", currencies=currencies, user=user
         )
     except Exception as e:
-        logger.error(f"Error al cargar el conversor de monedas: {str(e)}")
+        logger.error("Error al cargar el conversor de monedas: {str(e)}")
         flash("Error al cargar el conversor de monedas", "danger")
         return redirect(url_for("home"))
 
@@ -856,7 +853,7 @@ def convert_currency():
             return jsonify({"error": "Se requiere formato JSON"}), 400
 
         data = request.get_json()
-        logger.info(f"Datos recibidos en /api/convert: {data}")
+        logger.info("Datos recibidos en /api/convert: {data}")
 
         if not data:
             logger.error("No se recibieron datos JSON")
@@ -865,7 +862,7 @@ def convert_currency():
         amount = data.get("amount")
         from_currency = data.get("currency")
 
-        logger.info(f"Procesando conversión: amount={amount}, currency={from_currency}")
+        logger.info("Procesando conversión: amount={amount}, currency={from_currency}")
 
         if not amount or not from_currency:
             logger.error("Faltan datos requeridos")
@@ -874,13 +871,13 @@ def convert_currency():
         try:
             amount = float(amount)
             if amount <= 0:
-                logger.error(f"Monto inválido: {amount}")
+                logger.error("Monto inválido: {amount}")
                 return jsonify({"error": "El monto debe ser mayor que 0"}), 400
         except (TypeError, ValueError):
-            logger.error(f"Error al convertir monto a float: {amount}")
+            logger.error("Error al convertir monto a float: {amount}")
             return jsonify({"error": "El monto debe ser un número válido"}), 400
 
-        logger.info(f"Intentando convertir {amount} {from_currency} a CLP")
+        logger.info("Intentando convertir {amount} {from_currency} a CLP")
 
         try:
             # Verificar que el conversor esté inicializado correctamente
@@ -892,17 +889,17 @@ def convert_currency():
                 )
 
             result = currency_converter.convert_to_clp(amount, from_currency)
-            logger.info(f"Conversión exitosa: {result}")
+            logger.info("Conversión exitosa: {result}")
             return jsonify(result)
         except ValueError as e:
-            logger.error(f"Error en la conversión: {str(e)}")
+            logger.error("Error en la conversión: {str(e)}")
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error inesperado en la conversión: {str(e)}")
+            logger.error("Error inesperado en la conversión: {str(e)}")
             return jsonify({"error": "Error al realizar la conversión"}), 500
 
     except Exception as e:
-        logger.error(f"Error general en /api/convert: {str(e)}")
+        logger.error("Error general en /api/convert: {str(e)}")
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -1002,7 +999,7 @@ def send_contact_email():
         required_fields = ["name", "email", "subject", "message"]
         for field in required_fields:
             if not data.get(field):
-                return jsonify({"error": f"El campo {field} es requerido"}), 400
+                return jsonify({"error": "El campo {field} es requerido"}), 400
 
         # Crear el mensaje
         msg = Message(
@@ -1026,7 +1023,7 @@ def send_contact_email():
         return jsonify({"message": "Mensaje enviado correctamente"}), 200
 
     except Exception as e:
-        logger.error(f"Error al enviar correo de contacto: {str(e)}")
+        logger.error("Error al enviar correo de contacto: {str(e)}")
         return jsonify({"error": "Error al enviar el mensaje"}), 500
 
 

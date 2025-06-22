@@ -1,8 +1,6 @@
 import sys
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 import requests
 
 # Add parent directory to Python path to find the flask-app package

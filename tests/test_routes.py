@@ -1,18 +1,13 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 # Add parent directory to Python path to find the flask-app package
 parent_dir = str(Path(__file__).parent.parent)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-import json
-from decimal import Decimal
 
 from flask import session, url_for
-from werkzeug.security import generate_password_hash
 
 from flask_app import CartItem, Category, Order, Product, User, WebpayTransaction, db
 
@@ -26,7 +21,7 @@ def test_home_page(client):
 
 def test_product_listing(client, test_product):
     """Test product listing page"""
-    response = client.get(f"/categoria/{test_product.category_id}")
+    response = client.get("/categoria/{test_product.category_id}")
     assert response.status_code == 200
     assert test_product.name.encode("utf-8") in response.data
     assert str(test_product.price).encode("utf-8") in response.data
@@ -34,7 +29,7 @@ def test_product_listing(client, test_product):
 
 def test_product_detail(client, test_product):
     """Test product detail page"""
-    response = client.get(f"/product/{test_product.id}")
+    response = client.get("/product/{test_product.id}")
     assert response.status_code == 200
     assert test_product.name.encode("utf-8") in response.data
     assert test_product.description.encode("utf-8") in response.data
@@ -42,7 +37,7 @@ def test_product_detail(client, test_product):
 
 def test_category_products(client, test_category, test_product):
     """Test category products page"""
-    response = client.get(f"/categoria/{test_category.id}")
+    response = client.get("/categoria/{test_category.id}")
     assert response.status_code == 200
     assert test_category.name.encode("utf-8") in response.data
 
@@ -170,7 +165,7 @@ def test_update_cart(client, test_user, test_product, app):
         db.session.commit()
 
         response = client.put(
-            f"/api/cart/update/{cart_item.id}",
+            "/api/cart/update/{cart_item.id}",
             json={"quantity": 2},
             content_type="application/json",
         )
@@ -194,7 +189,7 @@ def test_remove_from_cart(client, test_user, test_product, app):
         db.session.commit()
         item_id = cart_item.id
 
-        response = client.delete(f"/api/cart/remove/{item_id}")
+        response = client.delete("/api/cart/remove/{item_id}")
         assert response.status_code == 204
 
         # Verify item was removed

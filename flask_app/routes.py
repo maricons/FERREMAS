@@ -1,6 +1,3 @@
-import json
-from decimal import Decimal
-
 from flask import (
     Blueprint,
     abort,
@@ -12,10 +9,7 @@ from flask import (
     session,
     url_for,
 )
-from flask_mail import Message
-from werkzeug.security import check_password_hash, generate_password_hash
 
-from .currency_converter import CurrencyConverter
 from .extensions import db
 from .models import CartItem, Category, Order, Product, User, WebpayTransaction
 from .webpay_plus import WebpayPlus

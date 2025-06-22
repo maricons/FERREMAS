@@ -1,7 +1,4 @@
-import json
 import logging
-import os
-from datetime import datetime, timedelta
 from functools import lru_cache
 
 import requests
@@ -39,30 +36,32 @@ class CurrencyConverter:
                 )
             logger.info("CurrencyConverter inicializado correctamente")
         except Exception as e:
-            logger.error(f"Error al inicializar CurrencyConverter: {str(e)}")
+            logger.error("Error al inicializar CurrencyConverter: {str(e)}")
             raise
 
     @lru_cache(maxsize=32)
     def get_exchange_rate(self, currency_code, date=None):
         """
-        Obtiene la tasa de cambio para una moneda específica.
+            Obtiene la tasa de cambio para una moneda específica.
 
-        Args:
-            currency_code (str): Código de la moneda (USD, EUR, etc.)
-            date (datetime, optional): Fecha específica. Por defecto, None (usa fecha actual)
+            Args:
+                currency_code (str): Código de la moneda (USD, EUR, etc.)
+                date (datetime,
+        optional): Fecha específica. Por defecto,
+        None (usa fecha actual)
 
-        Returns:
-            float: Tasa de cambio
+            Returns:
+                float: Tasa de cambio
 
-        Raises:
-            ValueError: Si la moneda no está soportada o hay un error en la API
+            Raises:
+                ValueError: Si la moneda no está soportada o hay un error en la API
         """
         try:
-            logger.info(f"Obteniendo tasa de cambio para {currency_code}")
+            logger.info("Obteniendo tasa de cambio para {currency_code}")
 
             if currency_code not in CURRENCY_SERIES:
-                logger.error(f"Moneda no soportada: {currency_code}")
-                raise ValueError(f"Moneda no soportada: {currency_code}")
+                logger.error("Moneda no soportada: {currency_code}")
+                raise ValueError("Moneda no soportada: {currency_code}")
 
             # Si no se especifica fecha, usar la fecha actual
             if date is None:
@@ -82,7 +81,7 @@ class CurrencyConverter:
                 "lastdate": end_date,
             }
 
-            logger.info(f"Realizando petición a la API con parámetros: {params}")
+            logger.info("Realizando petición a la API con parámetros: {params}")
 
             # Realizar la solicitud a la API
             response = self.session.get(BASE_URL, params=params, timeout=10)
@@ -98,22 +97,22 @@ class CurrencyConverter:
             try:
                 data = response.json()
             except json.JSONDecodeError as e:
-                logger.error(f"Error al decodificar JSON de la respuesta: {str(e)}")
-                logger.error(f"Respuesta recibida: {response.text}")
+                logger.error("Error al decodificar JSON de la respuesta: {str(e)}")
+                logger.error("Respuesta recibida: {response.text}")
                 raise ValueError("Error al procesar la respuesta de la API")
 
-            logger.info(f"Respuesta de la API: {data}")
+            logger.info("Respuesta de la API: {data}")
 
             # Verificar si hay datos
             if not data or "Series" not in data or not data["Series"]:
-                logger.error(f"No hay datos disponibles para {currency_code}")
-                raise ValueError(f"No hay datos disponibles para {currency_code}")
+                logger.error("No hay datos disponibles para {currency_code}")
+                raise ValueError("No hay datos disponibles para {currency_code}")
 
             # Obtener el valor más reciente
             series = data["Series"]
             if not series["Obs"]:
-                logger.error(f"No hay observaciones para {currency_code}")
-                raise ValueError(f"No hay observaciones para {currency_code}")
+                logger.error("No hay observaciones para {currency_code}")
+                raise ValueError("No hay observaciones para {currency_code}")
 
             # Filtrar observaciones válidas (statusCode = 'OK')
             valid_observations = [
@@ -121,27 +120,25 @@ class CurrencyConverter:
             ]
 
             if not valid_observations:
-                logger.error(f"No hay observaciones válidas para {currency_code}")
-                raise ValueError(f"No hay observaciones válidas para {currency_code}")
+                logger.error("No hay observaciones válidas para {currency_code}")
+                raise ValueError("No hay observaciones válidas para {currency_code}")
 
             # Tomar el valor más reciente
             try:
                 latest_value = float(valid_observations[-1]["value"])
             except (KeyError, ValueError, IndexError) as e:
-                logger.error(f"Error al obtener el valor más reciente: {str(e)}")
+                logger.error("Error al obtener el valor más reciente: {str(e)}")
                 raise ValueError("Error al procesar el valor de la tasa de cambio")
 
-            logger.info(f"Tasa de cambio obtenida para {currency_code}: {latest_value}")
+            logger.info("Tasa de cambio obtenida para {currency_code}: {latest_value}")
             return latest_value
 
         except requests.RequestException as e:
-            logger.error(f"Error de conexión con la API: {str(e)}")
-            raise ValueError(
-                f"Error al conectar con la API del Banco Central: {str(e)}"
-            )
+            logger.error("Error de conexión con la API: {str(e)}")
+            raise ValueError("Error al conectar con la API del Banco Central: {str(e)}")
         except Exception as e:
-            logger.error(f"Error inesperado: {str(e)}")
-            raise ValueError(f"Error inesperado: {str(e)}")
+            logger.error("Error inesperado: {str(e)}")
+            raise ValueError("Error inesperado: {str(e)}")
 
     def convert_to_clp(self, amount, from_currency):
         """
@@ -158,25 +155,25 @@ class CurrencyConverter:
             ValueError: Si hay un error en la conversión
         """
         try:
-            logger.info(f"Iniciando conversión de {amount} {from_currency} a CLP")
+            logger.info("Iniciando conversión de {amount} {from_currency} a CLP")
 
             # Validar el monto
             try:
                 amount = float(amount)
             except (TypeError, ValueError):
-                logger.error(f"Error al convertir monto a float: {amount}")
+                logger.error("Error al convertir monto a float: {amount}")
                 raise ValueError("El monto debe ser un número válido")
 
             if amount <= 0:
-                logger.error(f"Monto inválido: {amount}")
+                logger.error("Monto inválido: {amount}")
                 raise ValueError("El monto debe ser mayor que 0")
 
             # Obtener la tasa de cambio
             try:
                 rate = self.get_exchange_rate(from_currency)
             except ValueError as e:
-                logger.error(f"Error al obtener tasa de cambio: {str(e)}")
-                raise ValueError(f"Error al obtener tasa de cambio: {str(e)}")
+                logger.error("Error al obtener tasa de cambio: {str(e)}")
+                raise ValueError("Error al obtener tasa de cambio: {str(e)}")
 
             # Realizar la conversión
             converted_amount = amount * rate
@@ -189,15 +186,15 @@ class CurrencyConverter:
                 "date": datetime.now().strftime("%Y-%m-%d"),
             }
 
-            logger.info(f"Conversión exitosa: {result}")
+            logger.info("Conversión exitosa: {result}")
             return result
 
         except ValueError as e:
-            logger.error(f"Error en la conversión: {str(e)}")
-            raise ValueError(f"Error en la conversión: {str(e)}")
+            logger.error("Error en la conversión: {str(e)}")
+            raise ValueError("Error en la conversión: {str(e)}")
         except Exception as e:
-            logger.error(f"Error inesperado en la conversión: {str(e)}")
-            raise ValueError(f"Error inesperado: {str(e)}")
+            logger.error("Error inesperado en la conversión: {str(e)}")
+            raise ValueError("Error inesperado: {str(e)}")
 
     def get_available_currencies(self):
         """
