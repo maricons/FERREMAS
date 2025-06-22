@@ -1,6 +1,7 @@
 import json
 import os
 from decimal import Decimal
+
 from flask import (
     Blueprint,
     abort,
