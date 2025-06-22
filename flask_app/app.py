@@ -745,6 +745,7 @@ def enviar_comprobante(order, user_email):
     except Exception:
         print("\n=== ERROR AL ENVIAR CORREO ===")
         import traceback
+
         print("Traceback completo:")
         print(traceback.format_exc())
 
@@ -832,6 +833,7 @@ def retorno_webpay():
     except Exception:
         print("\n=== ERROR EN RETORNO WEBPAY ===")
         import traceback
+
         print("Traceback completo:")
         print(traceback.format_exc())
         return redirect(url_for("comprobante_pago", status="error"))
