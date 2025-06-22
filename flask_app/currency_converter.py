@@ -38,7 +38,7 @@ class CurrencyConverter:
                     "Credenciales de la API del Banco Central no configuradas"
                 )
             logger.info("CurrencyConverter inicializado correctamente")
-        except Exception as _:
+        except Exception:
             logger.error("Error al inicializar CurrencyConverter")
             raise
 
@@ -99,7 +99,7 @@ class CurrencyConverter:
             # Procesar la respuesta
             try:
                 data = response.json()
-            except json.JSONDecodeError as _:
+            except json.JSONDecodeError:
                 logger.error("Error al decodificar JSON de la respuesta")
                 logger.error("Respuesta recibida: {response.text}")
                 raise ValueError("Error al procesar la respuesta de la API")
@@ -129,17 +129,17 @@ class CurrencyConverter:
             # Tomar el valor más reciente
             try:
                 latest_value = float(valid_observations[-1]["value"])
-            except (KeyError, ValueError, IndexError) as _:
+            except (KeyError, ValueError, IndexError):
                 logger.error("Error al obtener el valor más reciente")
                 raise ValueError("Error al procesar el valor de la tasa de cambio")
 
             logger.info("Tasa de cambio obtenida para {currency_code}: {latest_value}")
             return latest_value
 
-        except requests.RequestException as _:
+        except requests.RequestException:
             logger.error("Error de conexión con la API")
             raise ValueError("Error al conectar con la API del Banco Central")
-        except Exception as _:
+        except Exception:
             logger.error("Error inesperado")
             raise ValueError("Error inesperado")
 
@@ -174,7 +174,7 @@ class CurrencyConverter:
             # Obtener la tasa de cambio
             try:
                 rate = self.get_exchange_rate(from_currency)
-            except ValueError as _:
+            except ValueError:
                 logger.error("Error al obtener tasa de cambio")
                 raise ValueError("Error al obtener tasa de cambio")
 
@@ -192,10 +192,10 @@ class CurrencyConverter:
             logger.info("Conversión exitosa: {result}")
             return result
 
-        except ValueError as _:
+        except ValueError:
             logger.error("Error en la conversión")
             raise ValueError("Error en la conversión")
-        except Exception as _:
+        except Exception:
             logger.error("Error inesperado en la conversión")
             raise ValueError("Error inesperado")
 

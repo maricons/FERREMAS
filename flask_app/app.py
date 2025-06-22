@@ -123,8 +123,14 @@ def allowed_file(filename):
 
 
 # Configuración de la base de datos
+db_user = os.getenv("DB_USER")
+db_password = os.getenv("DB_PASSWORD")
+db_host = os.getenv("DB_HOST")
+db_port = os.getenv("DB_PORT")
+db_name = os.getenv("DB_NAME")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = (
-    f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+    f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_TYPE"] = "filesystem"
@@ -229,8 +235,11 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
+        if not email or not password:
+            flash("Todos los campos son requeridos", "danger")
+            return render_template("login.html")
         user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
+        if user and user.password and check_password_hash(user.password, password):
             session["user"] = {
                 "email": user.email,
                 "name": user.username,
@@ -263,7 +272,7 @@ def register():
             email = request.form.get("email")
 
             # Validar campos requeridos
-            if not all([username, password, email]):
+            if not username or not password or not email:
                 flash("Todos los campos son requeridos", "danger")
                 return redirect(url_for("register"))
 
@@ -300,7 +309,7 @@ def register():
                 db.session.commit()
                 flash("¡Registro exitoso! Ahora puede iniciar sesión.", "success")
                 return redirect(url_for("login"))
-            except Exception as _:
+            except Exception:
                 db.session.rollback()
                 logger.error("Error al crear usuario")
                 flash(
@@ -308,7 +317,7 @@ def register():
                 )
                 return redirect(url_for("register"))
 
-        except Exception as _:
+        except Exception:
             logger.error("Error en el registro")
             flash(
                 "Error al procesar el registro. Por favor, intente nuevamente.",
@@ -367,19 +376,25 @@ def get_product(id):
 @app.route("/api/products", methods=["POST"])
 def create_product():
     name = request.form.get("name")
-    price = float(request.form.get("price"))
+    price_str = request.form.get("price")
+    if not name or not price_str:
+        return jsonify({"error": "Nombre y precio son requeridos"}), 400
+    try:
+        price = float(price_str)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Precio inválido"}), 400
 
     # Manejar la imagen
     image_path = ""
     if "imageFile" in request.files:
         file = request.files["imageFile"]
-        if file and allowed_file(file.filename):
+        if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             # Asegurarse de que el directorio existe
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
             file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
-            image_path = "uploads/{filename}"
+            image_path = f"uploads/{filename}"
     elif "imageUrl" in request.form and request.form.get("imageUrl"):
         image_path = request.form.get("imageUrl")
 
@@ -395,19 +410,26 @@ def create_product():
 def update_product(id):
     product = Product.query.get_or_404(id)
 
-    product.name = request.form.get("name", product.name)
-    product.price = float(request.form.get("price", product.price))
+    name = request.form.get("name", product.name)
+    price_str = request.form.get("price", str(product.price))
+    try:
+        price = float(price_str)
+    except (TypeError, ValueError):
+        price = product.price
+
+    product.name = name
+    product.price = price
 
     # Manejar la imagen
     if "imageFile" in request.files:
         file = request.files["imageFile"]
-        if file and allowed_file(file.filename):
+        if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             # Asegurarse de que el directorio existe
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
             file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
-            product.image = "uploads/{filename}"
+            product.image = f"uploads/{filename}"
     elif "imageUrl" in request.form and request.form.get("imageUrl"):
         product.image = request.form.get("imageUrl")
 
@@ -520,10 +542,10 @@ def add_to_cart():
         logger.info("Producto {product_id} añadido exitosamente al carrito")
         return jsonify(item_data), 201
 
-    except ValueError as _:
+    except ValueError:
         logger.error("Error de valor")
         return jsonify({"error": "Datos inválidos"}), 400
-    except Exception as _:
+    except Exception:
         logger.error("Error al añadir al carrito")
         db.session.rollback()
         return jsonify({"error": "Error interno del servidor"}), 500
@@ -697,10 +719,10 @@ def iniciar_pago():
 
         return jsonify(response)
 
-    except Exception as _:
+    except Exception:
         print("\nError en el proceso de pago")
         db.session.rollback()
-        return jsonify({"error": str(_)}), 500
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 def enviar_comprobante(order, user_email):
@@ -720,12 +742,9 @@ def enviar_comprobante(order, user_email):
         mail.send(msg)
         print("Correo enviado exitosamente")
 
-    except Exception as _:
+    except Exception:
         print("\n=== ERROR AL ENVIAR CORREO ===")
-        print("Error: {str(_)}")
-        print("Tipo de error: {type(_)}")
         import traceback
-
         print("Traceback completo:")
         print(traceback.format_exc())
 
@@ -810,12 +829,9 @@ def retorno_webpay():
 
         return redirect(url_for("comprobante_pago", status=status))
 
-    except Exception as _:
+    except Exception:
         print("\n=== ERROR EN RETORNO WEBPAY ===")
-        print("Error: {str(_)}")
-        print("Tipo de error: {type(_)}")
         import traceback
-
         print("Traceback completo:")
         print(traceback.format_exc())
         return redirect(url_for("comprobante_pago", status="error"))
@@ -839,7 +855,7 @@ def currency_converter_page():
         return render_template(
             "currency_converter.html", currencies=currencies, user=user
         )
-    except Exception as _:
+    except Exception:
         logger.error("Error al cargar el conversor de monedas")
         flash("Error al cargar el conversor de monedas", "danger")
         return redirect(url_for("home"))
@@ -892,14 +908,14 @@ def convert_currency():
             result = currency_converter.convert_to_clp(amount, from_currency)
             logger.info("Conversión exitosa: {result}")
             return jsonify(result)
-        except ValueError as _:
+        except ValueError:
             logger.error("Error en la conversión")
-            return jsonify({"error": str(_)}), 400
-        except Exception as _:
+            return jsonify({"error": "Error en la conversión"}), 400
+        except Exception:
             logger.error("Error inesperado en la conversión")
             return jsonify({"error": "Error al realizar la conversión"}), 500
 
-    except Exception as _:
+    except Exception:
         logger.error("Error general en /api/convert")
         return jsonify({"error": "Error interno del servidor"}), 500
 
@@ -924,7 +940,7 @@ def get_currencies():
     try:
         currencies = currency_converter.get_available_currencies()
         return jsonify(currencies)
-    except Exception as _:
+    except Exception:
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -1023,7 +1039,7 @@ def send_contact_email():
 
         return jsonify({"message": "Mensaje enviado correctamente"}), 200
 
-    except Exception as _:
+    except Exception:
         logger.error("Error al enviar correo de contacto")
         return jsonify({"error": "Error al enviar el mensaje"}), 500
 

@@ -17,7 +17,9 @@ def reset_database():
         categories = [
             {
                 "name": "Herramientas Manuales",
-                "description": "Herramientas básicas para el hogar y trabajo profesional",
+                "description": (
+                    "Herramientas básicas para el hogar y trabajo profesional"
+                ),
                 "icon": "fas fa-tools",
             },
             {
