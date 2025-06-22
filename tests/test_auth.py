@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-import pytest
 from flask import session
 
 from flask_app.models import User

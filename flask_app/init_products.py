@@ -4,18 +4,6 @@ from .models import Category, Product
 
 
 def init_products():
-    # Mapeo de nombre de categoría a nombre usado en productos
-    category_name_map = {
-        "Herramientas Manuales": ["Martillo Profesional", "Set de Destornilladores"],
-        "Herramientas Eléctricas": ["Taladro Inalámbrico", "Sierra Circular"],
-        "Materiales de Construcción": ["Saco de Cemento", "Ladrillos"],
-        "Pinturas y Acabados": ["Pintura Interior", "Barniz Transparente"],
-        "Plomería": ["Set de Llaves", "Tubería PVC"],
-        "Electricidad": ["Cable Eléctrico", "Interruptor Simple"],
-        "Seguridad": ["Casco de Seguridad", "Guantes de Seguridad"],
-        "Jardín": ["Cortadora de Césped", "Set de Jardinería"],
-    }
-
     with app.app_context():
         # Obtener IDs reales de las categorías
         categories = {cat.name: cat.id for cat in Category.query.all()}

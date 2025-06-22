@@ -1,18 +1,6 @@
-import os
-import sys
-
 from .app import app
 from .extensions import db
-from .models import (
-    CartItem,
-    Category,
-    Order,
-    OrderItem,
-    Product,
-    User,
-    WebpayTransaction,
-)
-
+from .models import Category
 
 def reset_database():
     with app.app_context():

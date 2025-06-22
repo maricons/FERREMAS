@@ -107,7 +107,6 @@ def contact():
 
 @main_bp.route("/api/contact", methods=["POST"])
 def send_contact_email():
-    data = request.get_json()
     # Aquí iría la lógica para enviar el email
     return jsonify({"message": "Mensaje enviado correctamente"})
 

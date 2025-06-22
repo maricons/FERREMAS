@@ -25,6 +25,15 @@ from werkzeug.utils import secure_filename
 from .auth import auth_bp
 from .currency_converter import CurrencyConverter
 from .extensions import db
+from .models import (
+    CartItem,
+    Category,
+    Order,
+    OrderItem,
+    Product,
+    User,
+    WebpayTransaction,
+)
 from .webpay_plus import WebpayPlus
 
 # Configuración del logger
@@ -134,17 +143,6 @@ webpay = WebpayPlus()
 
 # Inicializar el conversor de monedas
 currency_converter = CurrencyConverter()
-
-# Importar modelos después de inicializar db
-from .models import (
-    CartItem,
-    Category,
-    Order,
-    OrderItem,
-    Product,
-    User,
-    WebpayTransaction,
-)
 
 
 # Esquemas para serialización

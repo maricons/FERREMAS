@@ -1,5 +1,6 @@
 # tests/conftest.py
 
+import codecs
 import os
 import sys
 from decimal import Decimal
@@ -17,8 +18,6 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 # Force UTF-8 encoding for all string operations
-import codecs
-
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer)
 sys.stdin = codecs.getreader("utf-8")(sys.stdin.buffer)
 
@@ -32,12 +31,7 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 
 def get_test_db_url():
-    user = quote_plus(os.environ["POSTGRES_USER"])
-    password = quote_plus(os.environ["POSTGRES_PASSWORD"])
-    host = quote_plus(os.environ["POSTGRES_HOST"])
-    port = quote_plus(os.environ["POSTGRES_PORT"])
-    db = quote_plus(os.environ["POSTGRES_DB"])
-    return "postgresql://{user}:{password}@{host}:{port}/{db}?client_encoding=utf8"
+    return "postgresql://postgres:postgres@localhost:5432/ferremas?client_encoding=utf8"
 
 
 @pytest.fixture
