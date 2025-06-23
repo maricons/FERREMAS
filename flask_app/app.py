@@ -22,7 +22,7 @@ from marshmallow import Schema, fields
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
-from .auth import auth_bp
+#from .auth import auth_bp
 from .currency_converter import CurrencyConverter
 from .extensions import db
 from .models import (
@@ -47,7 +47,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev")
 
 # Registrar el blueprint de autenticación
-app.register_blueprint(auth_bp)
+#app.register_blueprint(auth_bp)
 
 # Configuración para subida de archivos
 UPLOAD_FOLDER = "static/uploads"
@@ -150,7 +150,6 @@ webpay = WebpayPlus()
 # Inicializar el conversor de monedas
 currency_converter = CurrencyConverter()
 
-
 # Esquemas para serialización
 class ProductSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -159,7 +158,6 @@ class ProductSchema(Schema):
     image = fields.Str()
     is_promotion = fields.Bool()
     promotion_price = fields.Float()
-
 
 class CartItemSchema(Schema):
     id = fields.Int(dump_only=True)
@@ -173,7 +171,6 @@ product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
 cart_item_schema = CartItemSchema()
 cart_items_schema = CartItemSchema(many=True)
-
 
 # rutas
 # HOME
@@ -199,7 +196,6 @@ def home():
         promotion_products=promotion_products,
     )
 
-
 # Ruta para ver productos por categoría
 @app.route("/categoria/<int:category_id>")
 def category_products(category_id):
@@ -211,7 +207,6 @@ def category_products(category_id):
         "category_products.html", category=category, products=products, user=user
     )
 
-
 # PRODUCT DETAIL
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
@@ -220,7 +215,6 @@ def product_detail(product_id):
     user = session.get("user") if "user" in session else None
     return render_template("product_detail.html", product=product, user=user)
 
-
 # CART
 @app.route("/carrito")
 def carrito():
@@ -228,8 +222,8 @@ def carrito():
     user = session.get("user") if "user" in session else None
     return render_template("cart.html", user=user)
 
-
 # LOGIN
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -252,7 +246,6 @@ def login():
             flash("Credenciales inválidas. Por favor, intenta de nuevo.", "danger")
     return render_template("login.html")
 
-
 # LOGOUT
 @app.route("/logout")
 def logout():
@@ -260,7 +253,6 @@ def logout():
     session.pop("user_id", None)
     flash("Has cerrado sesión exitosamente.", "success")
     return redirect(url_for("home"))
-
 
 # REGISTER
 @app.route("/register", methods=["GET", "POST"])
@@ -327,7 +319,6 @@ def register():
 
     return render_template("register.html")
 
-
 # Rutas de la API
 @app.route("/api/products", methods=["GET"])
 def get_products():
@@ -346,7 +337,6 @@ def get_products():
     """
     products = Product.query.all()
     return jsonify(products_schema.dump(products))
-
 
 @app.route("/api/products/<int:id>", methods=["GET"])
 def get_product(id):
@@ -371,7 +361,6 @@ def get_product(id):
     """
     product = Product.query.get_or_404(id)
     return jsonify(product_schema.dump(product))
-
 
 @app.route("/api/products", methods=["POST"])
 def create_product():
@@ -405,7 +394,6 @@ def create_product():
 
     return jsonify(product_schema.dump(new_product)), 201
 
-
 @app.route("/api/products/<int:id>", methods=["PUT"])
 def update_product(id):
     product = Product.query.get_or_404(id)
@@ -436,7 +424,6 @@ def update_product(id):
     db.session.commit()
     return jsonify(product_schema.dump(product))
 
-
 @app.route("/api/products/<int:id>", methods=["DELETE"])
 def delete_product(id):
     product = Product.query.get_or_404(id)
@@ -448,176 +435,162 @@ def delete_product(id):
 # API para el Carrito de Compras
 @app.route("/api/cart", methods=["GET"])
 def get_cart():
-    """
-    Obtener el carrito del usuario autenticado
-    ---
-    tags:
-      - Carrito
-    responses:
-      200:
-        description: Lista de items en el carrito
-        schema:
-          type: array
-          items:
-            $ref: '#/definitions/CartItem'
-      401:
-        description: Usuario no autenticado
-    """
+    print("\n[GET CART] Iniciando obtención del carrito")
     if not session.get("user_id"):
+        print("[GET CART] Usuario no autenticado")
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     user_id = session.get("user_id")
+    print(f"[GET CART] user_id: {user_id}")
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
+    print(f"[GET CART] Items encontrados: {len(cart_items)}")
 
-    # Incluir información del producto en cada item del carrito
     result = []
     for item in cart_items:
+        print(f"[GET CART] Procesando item: {item.id}")
         item_data = cart_item_schema.dump(item)
         product = Product.query.get(item.product_id)
         item_data["product"] = product_schema.dump(product)
         result.append(item_data)
 
+    print("[GET CART] Retornando carrito")
     return jsonify(result)
-
 
 @app.route("/api/cart/add", methods=["POST"])
 def add_to_cart():
+    print("\n[ADD TO CART] Iniciando proceso de añadir al carrito")
     if not session.get("user_id"):
+        print("[ADD TO CART] Usuario no autenticado")
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     try:
         data = request.get_json()
-        logger.info("Datos recibidos en add_to_cart: {data}")
+        print(f"[ADD TO CART] Datos recibidos: {data}")
 
         if not data:
-            logger.error("No se recibieron datos JSON")
+            print("[ADD TO CART] No se recibieron datos JSON")
             return jsonify({"error": "No se recibieron datos"}), 400
 
         if "product_id" not in data:
-            logger.error("Falta product_id en la solicitud")
+            print("[ADD TO CART] Falta product_id en la solicitud")
             return jsonify({"error": "Se requiere product_id"}), 400
 
         user_id = session.get("user_id")
         product_id = int(data["product_id"])
         quantity = int(data.get("quantity", 1))
 
-        logger.info(
-            "Intentando añadir producto {product_id} al carrito del usuario {user_id}"
-        )
+        print(f"[ADD TO CART] user_id: {user_id}, product_id: {product_id}, quantity: {quantity}")
 
-        # Validar que el producto existe
         product = Product.query.get(product_id)
         if not product:
-            logger.error("Producto {product_id} no encontrado")
+            print(f"[ADD TO CART] Producto {product_id} no encontrado")
             return jsonify({"error": "Producto no encontrado"}), 404
 
-        # Validar que hay stock disponible
         if product.stock < quantity:
-            logger.error("Stock insuficiente para el producto {product_id}")
+            print(f"[ADD TO CART] Stock insuficiente para el producto {product_id}")
             return jsonify({"error": "No hay suficiente stock disponible"}), 400
 
-        # Verificar si el producto ya está en el carrito
         cart_item = CartItem.query.filter_by(
             user_id=user_id, product_id=product_id
         ).first()
 
         if cart_item:
-            # Actualizar cantidad si ya existe
+            print(f"[ADD TO CART] El producto ya está en el carrito, actualizando cantidad")
             cart_item.quantity += quantity
-            logger.info("Actualizada cantidad del producto {product_id} en el carrito")
         else:
-            # Crear nuevo item en el carrito
+            print(f"[ADD TO CART] Añadiendo nuevo producto al carrito")
             cart_item = CartItem(
                 user_id=user_id, product_id=product_id, quantity=quantity
             )
             db.session.add(cart_item)
-            logger.info("Añadido nuevo producto {product_id} al carrito")
 
         db.session.commit()
+        print(f"[ADD TO CART] Commit realizado")
 
-        # Incluir información del producto en la respuesta
         item_data = cart_item_schema.dump(cart_item)
         item_data["product"] = product_schema.dump(product)
 
-        logger.info("Producto {product_id} añadido exitosamente al carrito")
+        print(f"[ADD TO CART] Producto añadido exitosamente al carrito")
         return jsonify(item_data), 201
 
-    except ValueError:
-        logger.error("Error de valor")
+    except ValueError as ve:
+        print(f"[ADD TO CART] Error de valor: {ve}")
         return jsonify({"error": "Datos inválidos"}), 400
-    except Exception:
-        logger.error("Error al añadir al carrito")
+    except Exception as e:
+        print(f"[ADD TO CART] Error inesperado: {e}")
         db.session.rollback()
         return jsonify({"error": "Error interno del servidor"}), 500
 
-
 @app.route("/api/cart/update/<int:item_id>", methods=["PUT"])
 def update_cart_item(item_id):
+    print(f"\n[UPDATE CART ITEM] Iniciando actualización del item {item_id}")
     if not session.get("user_id"):
+        print("[UPDATE CART ITEM] Usuario no autenticado")
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     data = request.json
+    print(f"[UPDATE CART ITEM] Datos recibidos: {data}")
     if not data or "quantity" not in data:
+        print("[UPDATE CART ITEM] Falta quantity")
         return jsonify({"error": "Se requiere quantity"}), 400
 
     user_id = session.get("user_id")
     quantity = data["quantity"]
 
-    # Buscar el item en el carrito
     cart_item = CartItem.query.filter_by(id=item_id, user_id=user_id).first()
     if not cart_item:
+        print("[UPDATE CART ITEM] Item no encontrado en el carrito")
         return jsonify({"error": "Item no encontrado en el carrito"}), 404
 
     if quantity <= 0:
-        # Eliminar el item si la cantidad es 0 o negativa
+        print("[UPDATE CART ITEM] Cantidad <= 0, eliminando item")
         db.session.delete(cart_item)
         db.session.commit()
         return "", 204
 
-    # Actualizar la cantidad
+    print(f"[UPDATE CART ITEM] Actualizando cantidad a {quantity}")
     cart_item.quantity = quantity
     db.session.commit()
 
-    # Incluir información del producto en la respuesta
     product = Product.query.get(cart_item.product_id)
     item_data = cart_item_schema.dump(cart_item)
     item_data["product"] = product_schema.dump(product)
 
+    print("[UPDATE CART ITEM] Item actualizado correctamente")
     return jsonify(item_data)
-
 
 @app.route("/api/cart/remove/<int:item_id>", methods=["DELETE"])
 def remove_from_cart(item_id):
+    print(f"\n[REMOVE FROM CART] Iniciando eliminación del item {item_id}")
     if not session.get("user_id"):
+        print("[REMOVE FROM CART] Usuario no autenticado")
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     user_id = session.get("user_id")
-
-    # Buscar el item en el carrito
     cart_item = CartItem.query.filter_by(id=item_id, user_id=user_id).first()
     if not cart_item:
+        print("[REMOVE FROM CART] Item no encontrado en el carrito")
         return jsonify({"error": "Item no encontrado en el carrito"}), 404
 
-    # Eliminar el item
+    print("[REMOVE FROM CART] Eliminando item del carrito")
     db.session.delete(cart_item)
     db.session.commit()
-
+    print("[REMOVE FROM CART] Item eliminado correctamente")
     return "", 204
-
 
 @app.route("/api/cart/clear", methods=["DELETE"])
 def clear_cart():
+    print("\n[CLEAR CART] Iniciando limpieza del carrito")
     if not session.get("user_id"):
+        print("[CLEAR CART] Usuario no autenticado")
         return jsonify({"error": "Usuario no autenticado"}), 401
 
     user_id = session.get("user_id")
-
-    # Eliminar todos los items del carrito para este usuario
+    print(f"[CLEAR CART] user_id: {user_id}")
     CartItem.query.filter_by(user_id=user_id).delete()
     db.session.commit()
-
+    print("[CLEAR CART] Carrito limpiado correctamente")
     return "", 204
-
 
 # Rutas de Webpay
 @app.route("/iniciar-pago", methods=["POST"])
@@ -629,7 +602,7 @@ def iniciar_pago():
 
         user_id = session["user_id"]
         print("\n=== INICIANDO PROCESO DE PAGO ===")
-        print("Usuario autenticado: {user_id}")
+        print(f"Usuario autenticado: {user_id}")
 
         # Obtener items del carrito
         cart_items = CartItem.query.filter_by(user_id=user_id).all()
@@ -644,31 +617,37 @@ def iniciar_pago():
             if product:
                 total += Decimal(str(product.price)) * Decimal(str(item.quantity))
 
-        print("Total calculado: {total}")
+        print(f"Total calculado: {total}")
 
         # Crear orden
         print("Creando orden en la base de datos...")
         order = Order(user_id=user_id, total_amount=total, status="pending")
         db.session.add(order)
         db.session.commit()
-        print("Orden creada con ID: {order.id}")
+        print(f"Orden creada con ID: {order.id}")
 
         # Crear items de la orden
         print("Creando items de la orden...")
         for item in cart_items:
             product = Product.query.get(item.product_id)
+            print(f"Procesando item: {item.id}, producto: {product}")
             if product:
-                order_item = OrderItem(
-                    order_id=order.id,
-                    product_id=item.product_id,
-                    quantity=item.quantity,
-                    price=product.price,
-                )
-                db.session.add(order_item)
+                try:
+                    order_item = OrderItem(
+                        order_id=order.id,
+                        product_id=item.product_id,
+                        quantity=item.quantity,
+                        price_at_time=product.price,
+                    )
+                    db.session.add(order_item)
+                except Exception as e:
+                    print(f"Error al agregar OrderItem: {e}")
+        db.session.commit()
+        print("Items de la orden creados exitosamente")
 
         # Generar número de orden
-        buy_order = "OC-{order.id}"
-        print("Número de orden generado: {buy_order}")
+        buy_order = f"OC-{order.id}"
+        print(f"Número de orden generado: {buy_order}")
 
         # Crear transacción en la base de datos
         print("Creando transacción en la base de datos...")
@@ -685,14 +664,14 @@ def iniciar_pago():
 
         # Configurar URL de retorno
         return_url = url_for("retorno_webpay", _external=True)
-        print("URL de retorno configurada: {return_url}")
+        print(f"URL de retorno configurada: {return_url}")
 
         print("\n=== INICIANDO TRANSACCIÓN EN WEBPAY ===")
         print("Datos que se enviarán a Webpay:")
         print("- Monto: {int(total)}")
-        print("- Orden de compra: {buy_order}")
-        print("- ID de sesión: {user_id}")
-        print("- URL de retorno: {return_url}")
+        print(f"- Orden de compra: {buy_order}")
+        print(f"- ID de sesión: {user_id}")
+        print(f"- URL de retorno: {return_url}")
 
         # Crear transacción en Webpay usando la instancia
         response = webpay.create_transaction(
@@ -717,7 +696,11 @@ def iniciar_pago():
 
         print("\n=== PROCESO DE INICIO DE PAGO COMPLETADO ===")
 
-        return jsonify(response)
+        # DEVOLVER SOLO EL CAMPO URL QUE EL FRONTEND ESPERA
+        return jsonify({
+            "url": response.get("url") or response.get("redirect_url") or response.get("url_webpay"),
+            "token": response.get("token")
+        })
 
     except Exception:
         print("\nError en el proceso de pago")
@@ -728,8 +711,8 @@ def iniciar_pago():
 def enviar_comprobante(order, user_email):
     """Envía el comprobante de pago por correo electrónico"""
     try:
-        print("\n=== ENVIANDO COMPROBANTE POR EMAIL ===")
-        print("Enviando comprobante a: {user_email}")
+        print(f"\n=== ENVIANDO COMPROBANTE POR EMAIL ===")
+        print(f"Enviando comprobante a: {user_email}")
 
         msg = Message("Comprobante de Pago - Ferremas", recipients=[user_email])
 
@@ -782,7 +765,7 @@ def retorno_webpay():
     try:
         print("\nConsultando resultado de la transacción...")
         # Confirmar transacción con Webpay
-        response = webpay.commit_transaction(token_ws)
+        response = webpay.confirm_transaction(token_ws)
         print("Respuesta de commit:", response)
 
         # Buscar la transacción en la base de datos
@@ -800,8 +783,8 @@ def retorno_webpay():
             response_code = getattr(response, "response_code", None)
             amount = getattr(response, "amount", None)
 
-        print("Código de respuesta: {response_code}")
-        print("Monto: {amount}")
+        print(f"Código de respuesta: {response_code}")
+        print(f"Monto: {amount}")
 
         # Actualizar la transacción con la respuesta
         if response_code == 0:
@@ -819,7 +802,7 @@ def retorno_webpay():
 
             status = "success"
         else:
-            print("Transacción fallida con código: {response_code}")
+            print(f"Transacción fallida con código: {response_code}")
             transaction.status = "failed"
             transaction.response_code = response_code
             transaction.order.status = "failed"
