@@ -79,9 +79,9 @@ jobs:
         
         # === CORRECCIÓN #2: APUNTAR AL SERVICIO DE BASE DE DATOS ===
         # Apunta al servicio 'postgres' que se está ejecutando en localhost
-        DB_HOST: localhost
+        DB_HOST: postgres
         # El puerto del servicio se mapea dinámicamente. GitHub nos lo da en 'services.postgres.ports[5432]'
-        DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+        DB_PORT: 5432
         DB_NAME: ${{ secrets.DB_NAME }}
 
         WEBPAY_API_KEY: ${{ secrets.WEBPAY_API_KEY }}
