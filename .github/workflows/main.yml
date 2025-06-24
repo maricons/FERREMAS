@@ -70,6 +70,7 @@ jobs:
       env:
         # === CORRECCIÓN FINAL: CONSTRUIR LA URL DE CONEXIÓN COMPLETA ===
         # Le pasamos la URL completa a la aplicación, lo que sobreescribe cualquier configuración local.
+        # Esto es más robusto que pasar las piezas por separado.
         SQLALCHEMY_DATABASE_URI: postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@postgres:5432/${{ secrets.DB_NAME }}
         
         # El resto de los secretos que tu aplicación necesita
