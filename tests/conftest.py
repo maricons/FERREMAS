@@ -45,27 +45,13 @@ def test_db(app):
 
 @pytest.fixture
 def app():
-    """Create and configure a new app instance for each test."""
-    from flask_app import create_app, db
-
-    # Create the app with test config
-    app = create_app(
-        {
-            "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-            "SECRET_KEY": "test",
-            "WTF_CSRF_ENABLED": False,
-        }
-    )
-
-    # Create the database and load test data
-    with app.app_context():
+    from flask_app.app import app as real_app
+    # Usar la app real, pero asegurarse de que la DB esté limpia para cada test
+    with real_app.app_context():
         db.create_all()
-        yield app
+        yield real_app
         db.session.remove()
         db.drop_all()
-
 
 @pytest.fixture
 def client(app):
