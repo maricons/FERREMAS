@@ -55,7 +55,7 @@ jobs:
     - name: Instalar dependencias del sistema
       run: |
         sudo apt-get update
-        sudo apt-get install -y libpq-dev gcc g++ unixodbc-dev
+        sudo apt-get install -y libpq-dev
     
     # Paso 4: Instalar dependencias de Python
     - name: Instalar dependencias de Python
@@ -68,18 +68,12 @@ jobs:
     # Paso 5: Ejecutar tests con variables de entorno desde GitHub Secrets
     - name: Ejecutar tests con pytest
       env:
-        # Variables de entorno desde GitHub Secrets
-        SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        # === CORRECCIÓN FINAL: CONSTRUIR LA URL DE CONEXIÓN COMPLETA ===
+        # Le pasamos la URL completa a la aplicación, lo que sobreescribe cualquier configuración local.
+        SQLALCHEMY_DATABASE_URI: postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@postgres:5432/${{ secrets.DB_NAME }}
         
-        # === CORRECCIÓN FINAL: APUNTAR AL SERVICIO POR SU NOMBRE Y PUERTO ESTÁNDAR ===
-        # El nombre del servicio 'postgres' actúa como el hostname dentro de la red del job.
-        DB_HOST: postgres
-        # Dentro de la red del job, el puerto no es dinámico, es el puerto estándar de PostgreSQL.
-        DB_PORT: 5432
-        DB_NAME: ${{ secrets.DB_NAME }}
-
+        # El resto de los secretos que tu aplicación necesita
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
         WEBPAY_API_KEY: ${{ secrets.WEBPAY_API_KEY }}
         WEBPAY_COMMERCE_CODE: ${{ secrets.WEBPAY_COMMERCE_CODE }}
         WEBPAY_ENVIRONMENT: ${{ secrets.WEBPAY_ENVIRONMENT }}
@@ -99,7 +93,7 @@ jobs:
         # Ejecutar tests con verbose output
         pytest tests/ -v --tb=short
         
-    # Paso 6: Generar y Subir Reporte de Cobertura (Combinado)
+    # Paso 6: Generar y Subir Reporte de Cobertura
     - name: Generar y Subir Reporte de Cobertura
       if: always() # Se ejecuta incluso si el paso anterior falla para poder ver el reporte
       run: |
