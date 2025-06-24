@@ -855,7 +855,7 @@ def convert_currency():
             return jsonify({"error": "Se requiere formato JSON"}), 400
 
         data = request.get_json()
-        logger.info("Datos recibidos en /api/convert: {data}")
+        logger.info(f"Datos recibidos en /api/convert: {data}")
 
         if not data:
             logger.error("No se recibieron datos JSON")
@@ -864,7 +864,7 @@ def convert_currency():
         amount = data.get("amount")
         from_currency = data.get("currency")
 
-        logger.info("Procesando conversión: amount={amount}, currency={from_currency}")
+        logger.info(f"Procesando conversión: amount={amount}, currency={from_currency}")
 
         if not amount or not from_currency:
             logger.error("Faltan datos requeridos")
@@ -873,13 +873,13 @@ def convert_currency():
         try:
             amount = float(amount)
             if amount <= 0:
-                logger.error("Monto inválido: {amount}")
+                logger.error(f"Monto inválido: {amount}")
                 return jsonify({"error": "El monto debe ser mayor que 0"}), 400
         except (TypeError, ValueError):
-            logger.error("Error al convertir monto a float: {amount}")
+            logger.error(f"Error al convertir monto a float: {amount}")
             return jsonify({"error": "El monto debe ser un número válido"}), 400
 
-        logger.info("Intentando convertir {amount} {from_currency} a CLP")
+        logger.info(f"Intentando convertir {amount} {from_currency} a CLP")
 
         try:
             # Verificar que el conversor esté inicializado correctamente

@@ -60,11 +60,11 @@ class CurrencyConverter:
                 ValueError: Si la moneda no está soportada o hay un error en la API
         """
         try:
-            logger.info("Obteniendo tasa de cambio para {currency_code}")
+            logger.info(f"Obteniendo tasa de cambio para {currency_code}")
 
             if currency_code not in CURRENCY_SERIES:
-                logger.error("Moneda no soportada: {currency_code}")
-                raise ValueError("Moneda no soportada: {currency_code}")
+                logger.error(f"Moneda no soportada: {currency_code}")
+                raise ValueError(f"Moneda no soportada: {currency_code}")
 
             # Si no se especifica fecha, usar la fecha actual
             if date is None:
@@ -84,7 +84,7 @@ class CurrencyConverter:
                 "lastdate": end_date,
             }
 
-            logger.info("Realizando petición a la API con parámetros: {params}")
+            logger.info(f"Realizando petición a la API con parámetros: {params}")
 
             # Realizar la solicitud a la API
             response = self.session.get(BASE_URL, params=params, timeout=10)
@@ -101,21 +101,21 @@ class CurrencyConverter:
                 data = response.json()
             except json.JSONDecodeError:
                 logger.error("Error al decodificar JSON de la respuesta")
-                logger.error("Respuesta recibida: {response.text}")
+                logger.error(f"Respuesta recibida: {response.text}")
                 raise ValueError("Error al procesar la respuesta de la API")
 
-            logger.info("Respuesta de la API: {data}")
+            logger.info(f"Respuesta de la API: {data}")
 
             # Verificar si hay datos
             if not data or "Series" not in data or not data["Series"]:
-                logger.error("No hay datos disponibles para {currency_code}")
-                raise ValueError("No hay datos disponibles para {currency_code}")
+                logger.error(f"No hay datos disponibles para {currency_code}")
+                raise ValueError(f"No hay datos disponibles para {currency_code}")
 
             # Obtener el valor más reciente
             series = data["Series"]
             if not series["Obs"]:
-                logger.error("No hay observaciones para {currency_code}")
-                raise ValueError("No hay observaciones para {currency_code}")
+                logger.error(f"No hay observaciones para {currency_code}")
+                raise ValueError(f"No hay observaciones para {currency_code}")
 
             # Filtrar observaciones válidas (statusCode = 'OK')
             valid_observations = [
@@ -123,8 +123,8 @@ class CurrencyConverter:
             ]
 
             if not valid_observations:
-                logger.error("No hay observaciones válidas para {currency_code}")
-                raise ValueError("No hay observaciones válidas para {currency_code}")
+                logger.error(f"No hay observaciones válidas para {currency_code}")
+                raise ValueError(f"No hay observaciones válidas para {currency_code}")
 
             # Tomar el valor más reciente
             try:
@@ -133,7 +133,7 @@ class CurrencyConverter:
                 logger.error("Error al obtener el valor más reciente")
                 raise ValueError("Error al procesar el valor de la tasa de cambio")
 
-            logger.info("Tasa de cambio obtenida para {currency_code}: {latest_value}")
+            logger.info(f"Tasa de cambio obtenida para {currency_code}: {latest_value}")
             return latest_value
 
         except requests.RequestException:
@@ -158,17 +158,17 @@ class CurrencyConverter:
             ValueError: Si hay un error en la conversión
         """
         try:
-            logger.info("Iniciando conversión de {amount} {from_currency} a CLP")
+            logger.info(f"Iniciando conversión de {amount} {from_currency} a CLP")
 
             # Validar el monto
             try:
                 amount = float(amount)
             except (TypeError, ValueError):
-                logger.error("Error al convertir monto a float: {amount}")
+                logger.error(f"Error al convertir monto a float: {amount}")
                 raise ValueError("El monto debe ser un número válido")
 
             if amount <= 0:
-                logger.error("Monto inválido: {amount}")
+                logger.error(f"Monto inválido: {amount}")
                 raise ValueError("El monto debe ser mayor que 0")
 
             # Obtener la tasa de cambio
@@ -189,7 +189,7 @@ class CurrencyConverter:
                 "date": datetime.now().strftime("%Y-%m-%d"),
             }
 
-            logger.info("Conversión exitosa: {result}")
+            logger.info(f"Conversión exitosa: {result}")
             return result
 
         except ValueError:
