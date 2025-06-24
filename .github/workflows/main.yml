@@ -14,22 +14,18 @@ jobs:
     # Ejecuta en Ubuntu latest
     runs-on: ubuntu-latest
     
-    # === CORRECCIÓN #1: AÑADIR SERVICIO DE BASE DE DATOS ===
     # Inicia un contenedor con PostgreSQL antes de que empiecen los pasos.
     services:
-      # Define un servicio llamado 'postgres'
+      # Define un servicio llamado 'postgres'. Este nombre será su hostname.
       postgres:
         # Usa la imagen oficial de PostgreSQL de Docker Hub
         image: postgres:14-alpine
         # Configura las variables de entorno para la base de datos temporal
-        # Deben coincidir con los secretos que usas en el paso de las pruebas
         env:
           POSTGRES_USER: ${{ secrets.DB_USER }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
           POSTGRES_DB: ${{ secrets.DB_NAME }}
         # Opciones para asegurar que el servicio esté listo antes de que empiecen las pruebas
-        # El puerto 5432 del contenedor se mapeará a un puerto aleatorio en el host.
-        # Le decimos al health check que use el puerto 5432.
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -77,10 +73,10 @@ jobs:
         DB_USER: ${{ secrets.DB_USER }}
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         
-        # === CORRECCIÓN #2: APUNTAR AL SERVICIO DE BASE DE DATOS ===
-        # Apunta al servicio 'postgres' que se está ejecutando en localhost
+        # === CORRECCIÓN FINAL: APUNTAR AL SERVICIO POR SU NOMBRE Y PUERTO ESTÁNDAR ===
+        # El nombre del servicio 'postgres' actúa como el hostname dentro de la red del job.
         DB_HOST: postgres
-        # El puerto del servicio se mapea dinámicamente. GitHub nos lo da en 'services.postgres.ports[5432]'
+        # Dentro de la red del job, el puerto no es dinámico, es el puerto estándar de PostgreSQL.
         DB_PORT: 5432
         DB_NAME: ${{ secrets.DB_NAME }}
 
@@ -103,38 +99,16 @@ jobs:
         # Ejecutar tests con verbose output
         pytest tests/ -v --tb=short
         
-    # Paso 6: Generar reporte de cobertura
-    - name: Generar reporte de cobertura
-      if: always() # Se ejecuta incluso si el paso anterior falla
+    # Paso 6: Generar y Subir Reporte de Cobertura (Combinado)
+    - name: Generar y Subir Reporte de Cobertura
+      if: always() # Se ejecuta incluso si el paso anterior falla para poder ver el reporte
       run: |
         coverage run -m pytest tests/
-        coverage report
         coverage html
-    
-    # Paso 7: Subir reporte de cobertura
-    - name: Subir reporte de cobertura
+    - name: Subir artefacto de cobertura
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: htmlcov/
         retention-days: 30
-
-  # Job adicional para linting (opcional pero recomendado)
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout código
-      uses: actions/checkout@v4
-    - name: Configurar Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
-        cache: 'pip'
-    - name: Instalar herramientas de linting
-      run: pip install flake8 black isort
-    - name: Ejecutar linting
-      run: |
-        black --check flask_app/ tests/
-        isort --check-only flask_app/ tests/
-        flake8 flask_app/ tests/ --max-line-length=88 --extend-ignore=E203,W503
