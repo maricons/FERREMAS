@@ -39,18 +39,27 @@ jobs:
     - name: Ejecutar tests con pytest
       env:
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        WEBPAY_API_KEY: ${{ secrets.WEBPAY_API_KEY }}
-        WEBPAY_COMMERCE_CODE: ${{ secrets.WEBPAY_COMMERCE_CODE }}
-        WEBPAY_ENVIRONMENT: ${{ secrets.WEBPAY_ENVIRONMENT }}
+        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DB_NAME: ${{ secrets.DB_NAME }}
         MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
         MAIL_PORT: ${{ secrets.MAIL_PORT }}
-        MAIL_USE_TLS: ${{ secrets.MAIL_USE_TLS }}
         MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
         MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        MAIL_DEFAULT_SENDER: ${{ secrets.MAIL_DEFAULT_SENDER }}
+        BASE_URL: ${{ secrets.BASE_URL }}
+        WEBPAY_COMMERCE_CODE: ${{ secrets.WEBPAY_COMMERCE_CODE }}
+        WEBPAY_API_KEY: ${{ secrets.WEBPAY_API_KEY }}
+        WEBPAY_INTEGRATION_TYPE: ${{ secrets.WEBPAY_INTEGRATION_TYPE }}
         BDE_EMAIL: ${{ secrets.BDE_EMAIL }}
         BDE_PASSWORD: ${{ secrets.BDE_PASSWORD }}
-        FLASK_ENV: test
-        PYTHONPATH: ${{ github.workspace }}
+        FLASK_APP: ${{ secrets.FLASK_APP }}
+        FLASK_ENV: ${{ secrets.FLASK_ENV }}
+        TESTING: ${{ secrets.TESTING }}
       run: |
         pytest tests/ -v --tb=short
 
