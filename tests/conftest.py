@@ -21,16 +21,12 @@ sys.stdout = codecs.getwriter("utf-8")(sys.stdout.buffer)
 sys.stdin = codecs.getreader("utf-8")(sys.stdin.buffer)
 
 # Set environment variables for database
-os.environ["POSTGRES_USER"] = "postgres"
-os.environ["POSTGRES_PASSWORD"] = "postgres"
-os.environ["POSTGRES_HOST"] = "localhost"
-os.environ["POSTGRES_PORT"] = "5432"
-os.environ["POSTGRES_DB"] = "ferremas"
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 
 def get_test_db_url():
-    return "postgresql://postgres:postgres@localhost:5432/ferremas?client_encoding=utf8"
+    # Cambia esta URL si necesitas testear contra SQL Server local o Azure SQL
+    return "mssql+pyodbc://maricons@maricons:Password1!@maricons.database.windows.net:1433/ferremas?driver=ODBC+Driver+18+for+SQL+Server"
 
 
 @pytest.fixture
