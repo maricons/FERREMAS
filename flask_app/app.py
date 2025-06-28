@@ -1093,7 +1093,4 @@ def checkout():
 
 # SIEMPRE DEBE ESTAR AL FINAL O EL PROGRAMA NO FUNCIONA
 if __name__ == "__main__":
-    # Crear las tablas si no existen
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
