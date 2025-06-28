@@ -129,9 +129,18 @@ db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
 db_name = os.getenv("DB_NAME")
 
+
+#CADENA DE CONEXIÓN SQL SERVER AZURE:
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+18+for+SQL+Server"
+)
+'''
+#CADENA DE CONEXIÓN POSTGRES:
 app.config["SQLALCHEMY_DATABASE_URI"] = (
     f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 )
+
+'''
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_PERMANENT"] = True
