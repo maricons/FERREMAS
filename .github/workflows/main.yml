@@ -24,6 +24,14 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+    - name: Instalar ODBC Driver 18 para SQL Server
+      run: |
+        sudo su
+        curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+        curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list
+        exit
+        sudo apt-get update
+        sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
     - name: Instalar dependencias del sistema
       run: |
