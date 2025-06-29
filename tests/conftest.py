@@ -24,19 +24,7 @@ sys.stdin = codecs.getreader("utf-8")(sys.stdin.buffer)
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 
-def get_test_db_url():
-    # Cambia esta URL si necesitas testear contra SQL Server local o Azure SQL
-    return "mssql+pyodbc://maricons@maricons:Password1!@maricons.database.windows.net:1433/ferremas?driver=ODBC+Driver+18+for+SQL+Server"
 
-
-@pytest.fixture
-def test_db(app):
-    """Create a database session for testing."""
-    with app.app_context():
-        db.create_all()
-        yield db
-        db.session.remove()
-        db.drop_all()
 
 
 @pytest.fixture

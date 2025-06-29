@@ -14,11 +14,7 @@ logger = logging.getLogger(__name__)
 
 class WebpayPlus:
     def __init__(self):
-        """Inicializa la configuración de Webpay Plus"""
-        print("\n=== CONFIGURACIÓN DE WEBPAY ===")
-        print("Tipo de integración: IntegrationType.TEST")
-        print("Código de comercio: 597055555532")
-        print("API Key: 579B532A74...42D0A36B1C")
+        
 
         # Configurar Webpay Plus para ambiente de pruebas
         self.commerce_code = "597055555532"

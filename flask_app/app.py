@@ -134,6 +134,7 @@ db_name = os.getenv("DB_NAME")
 app.config["SQLALCHEMY_DATABASE_URI"] = (
     f"mssql+pyodbc://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+18+for+SQL+Server"
 )
+
 '''
 #CADENA DE CONEXIÓN POSTGRES:
 app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -151,7 +152,6 @@ app.config["BASE_URL"] = os.getenv("BASE_URL", "http://localhost:5000")
 
 # Inicializar extensiones
 db.init_app(app)
-migrate = Migrate(app, db)
 
 # Inicializar Webpay Plus
 webpay = WebpayPlus()
@@ -182,7 +182,8 @@ cart_item_schema = CartItemSchema()
 cart_items_schema = CartItemSchema(many=True)
 
 # rutas
-# HOME
+
+migrate = Migrate(app, db)# HOME
 @app.route("/")
 def home():
     # Obtener información del usuario desde la sesión
