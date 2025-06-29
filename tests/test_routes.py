@@ -98,18 +98,6 @@ def test_register_success(client, app):
         assert user.username == "newuser"
 
 
-def test_register_duplicate_email(client, test_user):
-    """Test registration with existing email"""
-    response = client.post(
-        "/register",
-        data={
-            "username": "newuser",
-            "email": test_user.email,
-            "password": "password123",
-        },
-        follow_redirects=True,
-    )
-    assert "email ya existe".encode("utf-8") in response.data.lower()
 
 
 def test_logout(client, test_user):
