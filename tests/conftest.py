@@ -30,12 +30,16 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 @pytest.fixture
 def app():
     from flask_app.app import app as real_app
-    # Usar la app real, pero asegurarse de que la DB esté limpia para cada test
+    from flask_app.app import db  # Asegúrate de importar db aquí
+
     with real_app.app_context():
-        db.create_all()
+        db.drop_all()      # <-- Limpia primero
+        db.create_all()    # <-- Luego crea las tablas
         yield real_app
         db.session.remove()
-        db.drop_all()
+        db.drop_all() 
+
+
 
 @pytest.fixture
 def client(app):
