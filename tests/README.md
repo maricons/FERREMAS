@@ -1,207 +1,178 @@
-# 🧪 Suite de Pruebas - FERREMAS
+# Plan de Pruebas FERREMAS
 
-## Descripción General
-Este directorio contiene la suite completa de pruebas automatizadas para el sistema FERREMAS, incluyendo pruebas unitarias, de integración y funcionales. La suite está completamente estabilizada y moderna, compatible con SQLAlchemy 2.0+.
+## 1. Propósito
+Establecer la estrategia y procedimientos para validar la calidad, funcionalidad y robustez del sistema FERREMAS después de su migración a Azure App Services y Azure SQL Server. El plan busca asegurar que los componentes críticos funcionen correctamente en el nuevo entorno, minimizando riesgos y garantizando la continuidad operativa.
 
-## 📁 Estructura de Archivos
+## 2. Alcance
+Este plan abarca pruebas unitarias y de integración de los módulos backend (Python/Flask), frontend (HTML/JS/CSS), y la integración con servicios externos (Webpay, email, conversor de moneda), así como la interacción con Azure SQL Server.
 
-```
-tests/
-├── __init__.py
-├── conftest.py              # Configuración y fixtures de pytest
-├── test_auth.py             # Pruebas de autenticación
-├── test_currency_converter.py # Pruebas del conversor de moneda
-├── test_models.py           # Pruebas de modelos de datos
-├── test_routes.py           # Pruebas de rutas y endpoints
-├── test_webpay.py           # Pruebas de integración con Webpay
-├── TEST_DOCUMENTATION.md    # Documentación detallada de casos de prueba
-├── README.md               # Este archivo
-└── static/                 # Archivos estáticos para pruebas
-    └── uploads/
-```
+## 3. Descripción del sistema
+FERREMAS es una aplicación de e-commerce desarrollada con Flask, que permite la gestión de productos, usuarios, compras y pagos en línea. Tras la actualización, el backend corre en Azure App Services, y la base de datos se aloja en Azure SQL Server. Incluye autenticación segura, gestión de inventario, integración de pagos con Webpay, notificaciones por email y conversión de monedas.
 
-## 🎯 Tipos de Pruebas
+## 4. Resumen de pruebas
 
-### Pruebas Unitarias
-- **test_currency_converter.py**: Pruebas del conversor de moneda (4 pruebas)
-- **test_models.py**: Pruebas de los modelos de datos (12 pruebas)
-- **test_webpay.py**: Pruebas de la integración con Webpay Plus (5 pruebas)
+- **Componentes a Probar**:
+  - Gestión de usuarios y sesiones (registro, login, recuperación)
+  - Catálogo y productos (visualización, búsqueda, stock)
+  - Carrito de compras (añadir, eliminar, actualizar cantidades)
+  - Proceso de pago y manejo de transacciones
+  - Módulo de correos y notificaciones
+  - Conversor de monedas
+  - Integración con Azure SQL Server y Webpay
 
-### Pruebas de Integración
-- **test_routes.py**: Pruebas de endpoints y flujos de usuario (18 pruebas)
-- **test_auth.py**: Pruebas de autenticación y autorización (7 pruebas)
+- **Objetivos de las Pruebas**:
+  - Validar que cada componente funciona de manera aislada (unitarias)
+  - Validar que los componentes se integran correctamente (integración)
+  - Detectar errores de migración a Azure App Services y SQL Server
+  - Comprobar seguridad y manejo de errores
 
-## 🚀 Ejecución de Pruebas
+- **Tipos de prueba**:
+  - Pruebas unitarias automatizadas (pytest/unittest)
+  - Pruebas de integración automatizadas y manuales
+  - Pruebas de API (con Swagger/Flasgger)
+  - Pruebas de interfaz de usuario (manuales/automatizadas)
 
-### Prerrequisitos
-1. Activar el entorno virtual:
-   ```bash
-   venv\Scripts\activate
-   ```
+- **Técnicas de prueba**:
+  - Caja blanca (unitarias en Python)
+  - Caja negra (integración y funcionales)
+  - Mocking para servicios externos (correo, Webpay)
+  - Uso de datos simulados y reales
 
-2. Instalar dependencias:
-   ```bash
-   pip install -r flask_app/requirements.txt
-   ```
+- **Roles involucrados**:
+  - Desarrolladores backend y frontend
+  - QA/Testers
+  - Líder técnico
 
-3. Configurar la base de datos:
-   ```bash
-   python init_database.py
-   ```
+## 5. Entorno y configuración de pruebas
 
-### Comandos de Ejecución
+- **Lenguaje backend**: Python 3.x (Flask)
+- **Frontend**: HTML, CSS, JavaScript
+- **Base de datos**: Azure SQL Server
+- **Infraestructura**: Azure App Services
+- **Frameworks de prueba**: pytest, unittest, Flasgger (Swagger)
+- **Herramientas adicionales**: Docker (opcional para local), Postman, Azure Portal
+- **Variables de entorno requeridas** (ejemplo):
+  - `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` (para Azure SQL Server)
+  - `SECRET_KEY`, `WEBPAY_*`, `MAIL_*`, etc.
+- **Comandos básicos**:
+  - Instalar dependencias: `pip install -r flask-app/requirements.txt`
+  - Ejecutar pruebas: `pytest tests/` o `python -m unittest discover tests/`
 
-#### Ejecutar toda la suite:
-```bash
-python -m pytest tests/ -v
-```
+## 6. Calendarización de pruebas
 
-#### Ejecutar por categoría:
-```bash
-# Solo pruebas unitarias
-python -m pytest tests/test_models.py tests/test_currency_converter.py tests/test_webpay.py -v
+| Actividad                  | Fecha de Inicio | Fecha de Fin | Responsable    |
+|----------------------------|-----------------|--------------|---------------|
+| Diseño de casos de prueba  | 28/06/2025      | 29/06/2025   | QA            |
+| Ejecución pruebas unitarias| 29/06/2025      | 30/06/2025   | Dev/QA        |
+| Ejecución pruebas integración | 30/06/2025      | 30/06/2025   | Dev/QA        |
+| Pruebas en Azure           | 30/06/2025      | 30/06/2025   | QA            |
+| Reporte de resultados      | 30/06/2025      | 01/07/2025   | QA            |
+| Revisión y cierre          | 30/06/2025      | 01/07/2025   | Líder Técnico |
 
-# Solo pruebas de integración
-python -m pytest tests/test_routes.py tests/test_auth.py -v
-```
+## 7. Resumen de riesgos (matriz de riesgos)
 
-#### Ejecutar pruebas específicas:
-```bash
-# Prueba específica
-python -m pytest tests/test_routes.py::test_add_to_cart -v
+| Riesgo                             | Probabilidad | Impacto | Mitigación                                  |
+|-------------------------------------|--------------|---------|---------------------------------------------|
+| Fallos de conexión Azure SQL Server | Media        | Alto    | Pruebas de conectividad, fallback local     |
+| Configuración incorrecta de variables de entorno | Media | Alto | Checklist de configuración, revisión por pares |
+| Timeout en integración con Webpay   | Baja         | Media   | Mock de Webpay para pruebas automatizadas   |
+| Errores de compatibilidad Python    | Baja         | Media   | Verificación de dependencias y versiones    |
+| Lentitud por recursos limitados en Azure | Baja    | Media   | Pruebas de carga, monitoreo en Azure        |
 
-# Pruebas que contengan "cart" en el nombre
-python -m pytest tests/ -k "cart" -v
-```
+## 8. Condiciones para el cierre del proyecto
 
-#### Ejecutar con cobertura:
-```bash
-python -m pytest tests/ --cov=flask_app --cov-report=html
-```
+- Todos los casos de prueba ejecutados y aprobados
+- No existen defectos críticos abiertos
+- Documentación de resultados disponible
+- Pruebas satisfactorias en entorno Azure
+- Checklist de migración completado
 
-## 📊 Estado Actual
+## 9. Glosario de términos técnicos
 
-✅ **51 pruebas pasando**  
-✅ **0 fallos**  
-✅ **0 warnings de SQLAlchemy**  
-✅ **100% compatibilidad con SQLAlchemy 2.0+**  
-✅ **Suite completamente estabilizada**
-
-### Métricas de Cobertura
-- **Pruebas Unitarias**: 21 pruebas
-- **Pruebas de Integración**: 25 pruebas
-- **Pruebas Funcionales**: 5 pruebas
-- **Total**: 51 pruebas
-
-### Distribución por Archivo:
-- `test_auth.py`: 7 pruebas
-- `test_currency_converter.py`: 5 pruebas
-- `test_models.py`: 12 pruebas
-- `test_routes.py`: 18 pruebas
-- `test_webpay.py`: 5 pruebas
-
-## 🔧 Configuración
-
-### Fixtures Disponibles
-- `app`: Instancia de la aplicación Flask configurada para testing
-- `client`: Cliente de pruebas de Flask
-- `test_user`: Usuario de prueba
-- `test_product`: Producto de prueba
-- `test_category`: Categoría de prueba
-- `test_order`: Orden de prueba
-
-### Base de Datos de Pruebas
-- Se utiliza SQLite en memoria para las pruebas
-- Cada prueba se ejecuta en una transacción aislada
-- Los datos se limpian automáticamente entre pruebas
-- Compatible con SQLAlchemy 2.0+ (sin warnings legacy)
-
-## 📋 Casos de Prueba Documentados
-
-Para ver la documentación detallada de los casos de prueba más representativos, consulta:
-**[TEST_DOCUMENTATION.md](TEST_DOCUMENTATION.md)**
-
-### Casos Destacados:
-- **UC-CC-01**: Conversión exitosa de moneda
-- **UC-CC-02**: Manejo de moneda inválida
-- **IT-RT-01**: Añadir producto al carrito
-- **IT-RT-02**: Detalle de producto
-
-## 🐛 Debugging
-
-### Ejecutar con más información:
-```bash
-python -m pytest tests/ -v -s --tb=long
-```
-
-### Ejecutar pruebas fallidas:
-```bash
-python -m pytest tests/ --lf -v
-```
-
-### Ejecutar con pdb:
-```bash
-python -m pytest tests/ --pdb
-```
-
-### Ejecutar sin warnings:
-```bash
-python -m pytest tests/ -v --disable-warnings
-```
-
-## 📝 Mejores Prácticas Implementadas
-
-1. **Nomenclatura**: Nombres descriptivos para todas las pruebas
-2. **Aislamiento**: Cada prueba es completamente independiente
-3. **Limpieza**: Fixtures para setup y teardown automático
-4. **Documentación**: Casos de prueba complejos documentados
-5. **Modernización**: Uso de SQLAlchemy 2.0+ sin métodos legacy
-6. **Cobertura**: Alta cobertura de código crítico
-
-## 🔄 CI/CD Ready
-
-La suite de pruebas está completamente preparada para CI/CD:
-
-### Workflow de CI/CD
-1. ✅ Instalación de dependencias
-2. ✅ Configuración de base de datos
-3. ✅ Ejecución de pruebas (51/51 pasando)
-4. ✅ Generación de reportes de cobertura
-5. ✅ Notificación de resultados
-
-### Integración con:
-- GitHub Actions
-- GitLab CI
-- Jenkins
-- Azure DevOps
-
-## 🆕 Mejoras Recientes
-
-### Estabilización de la Suite (Completada)
-- ✅ Corregidos 8 tests que fallaban
-- ✅ Eliminados todos los warnings de SQLAlchemy
-- ✅ Modernizado código para SQLAlchemy 2.0+
-- ✅ Documentación completa de casos de prueba
-
-### Próximas Mejoras Sugeridas
-1. Agregar tests de rendimiento
-2. Implementar tests de seguridad
-3. Agregar tests de accesibilidad
-4. Expandir cobertura de edge cases
-5. Implementar tests de carga
-
-## 📞 Soporte
-
-Si encuentras problemas con las pruebas:
-1. Verifica que el entorno virtual esté activado
-2. Asegúrate de que todas las dependencias estén instaladas
-3. Revisa la configuración de la base de datos
-4. Consulta los logs de pytest para más detalles
-5. Revisa la documentación en `TEST_DOCUMENTATION.md`
+- **Unit Test/Prueba Unitaria**: Evalúa una función, clase o módulo de forma aislada.
+- **Prueba de Integración**: Evalúa el funcionamiento conjunto de varios módulos o servicios.
+- **Mock**: Simulación de servicios externos para pruebas automáticas.
+- **Azure App Services**: Plataforma de despliegue en la nube para aplicaciones web.
+- **Swagger/Flasgger**: Herramientas para documentar y probar APIs REST.
+- **Webpay**: Plataforma de pagos electrónicos.
+- **CI/CD**: Integración y entrega continua de software.
 
 ---
 
-**Última actualización**: Diciembre 2024  
-**Versión**: 2.0.0  
-**Estado**: ✅ Suite Completamente Estabilizada  
-**Mantenido por**: Equipo de Desarrollo FERREMAS 
+# 2. Casos de Prueba
+
+Cada caso de prueba se documenta usando la siguiente plantilla:
+
+## Plantilla de Caso de Prueba
+
+| Campo              | Descripción                                                 |
+|--------------------|------------------------------------------------------------|
+| ID                 | TC-[número]                                                |
+| Nombre             | [Nombre del caso de prueba]                                |
+| Objetivo           | [Qué se busca validar]                                     |
+| Precondiciones     | [Estado previo necesario]                                  |
+| Pasos              | [Lista numerada de pasos]                                  |
+| Datos de entrada   | [Datos necesarios para la prueba]                          |
+| Resultado Esperado | [Qué debe ocurrir si todo es correcto]                     |
+| Tipo de prueba     | [Unitaria / Integración]                                   |
+| Estado             | [Pendiente / En progreso / Completado]                     |
+
+---
+
+### Ejemplo de casos de prueba
+
+#### TC-001 - Registro de usuario válido
+
+| Campo              | Descripción                                                 |
+|--------------------|------------------------------------------------------------|
+| ID                 | TC-001                                                     |
+| Nombre             | Registro de usuario con datos válidos                      |
+| Objetivo           | Verificar que el sistema permite registrar usuarios nuevos  |
+| Precondiciones     | No existe el correo en la base de datos                    |
+| Pasos              | 1. Acceder al formulario de registro<br>2. Ingresar datos válidos<br>3. Enviar formulario |
+| Datos de entrada   | Nombre, correo válido, contraseña segura                   |
+| Resultado Esperado | Usuario creado y redirigido a página de bienvenida         |
+| Tipo de prueba     | Integración                                                |
+| Estado             | Completado                                                 |
+
+#### TC-002 - Añadir producto al carrito
+
+| Campo              | Descripción                                                 |
+|--------------------|------------------------------------------------------------|
+| ID                 | TC-002                                                     |
+| Nombre             | Añadir producto al carrito                                  |
+| Objetivo           | Verificar que un usuario puede añadir productos al carrito  |
+| Precondiciones     | Usuario autenticado, producto disponible en stock           |
+| Pasos              | 1. Iniciar sesión<br>2. Seleccionar producto<br>3. Hacer clic en “Añadir al carrito” |
+| Datos de entrada   | ID producto, cantidad                                      |
+| Resultado Esperado | Producto aparece en el carrito y contador se actualiza      |
+| Tipo de prueba     | Integración                                                |
+| Estado             | Completado                                                 |
+
+#### TC-003 - Prueba unitaria: cálculo de subtotal del carrito
+
+| Campo              | Descripción                                                 |
+|--------------------|------------------------------------------------------------|
+| ID                 | TC-003                                                     |
+| Nombre             | Cálculo de subtotal del carrito                            |
+| Objetivo           | Validar que la función calcula correctamente el subtotal    |
+| Precondiciones     | Función importada                                           |
+| Pasos              | 1. Llamar función con lista de productos y cantidades      |
+| Datos de entrada   | [{producto: “martillo”, precio: 5000, cantidad: 2}]        |
+| Resultado Esperado | Subtotal devuelto: 10.000                                  |
+| Tipo de prueba     | Unitaria                                                   |
+| Estado             | Completado                                                 |
+
+#### TC-004 - Pago simulado con Webpay (mock)
+
+| Campo              | Descripción                                                 |
+|--------------------|------------------------------------------------------------|
+| ID                 | TC-004                                                     |
+| Nombre             | Pago simulado con Webpay                                   |
+| Objetivo           | Verificar integración del flujo de pago con Webpay usando mock |
+| Precondiciones     | Carrito con productos, usuario autenticado, mock activo    |
+| Pasos              | 1. Iniciar compra<br>2. Seleccionar método de pago Webpay<br>3. Confirmar pago (mock) |
+| Datos de entrada   | ID usuario, total carrito, datos mock                      |
+| Resultado Esperado | Respuesta exitosa simulada y generación de comprobante     |
+| Tipo de prueba     | Integración                                                |
+| Estado             | Completado                                                 |
