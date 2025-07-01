@@ -96,16 +96,30 @@ setup_venv() {
 
 # Función para instalar dependencias
 install_dependencies() {
-    print_status "Instalando dependencias..."
+    print_status "Instalando dependencias con estrategia robusta..."
     
     cd flask-app
     
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt
-        print_status "Dependencias instaladas desde requirements.txt"
+    # Usar script robusto si existe
+    if [ -f "install_dependencies.sh" ]; then
+        print_status "Usando script de instalación robusta..."
+        chmod +x install_dependencies.sh
+        ./install_dependencies.sh || print_warning "Script completado con advertencias"
+    elif [ -f "requirements.minimal.txt" ]; then
+        print_status "Usando requirements mínimo..."
+        timeout 180 pip install --no-cache-dir -r requirements.minimal.txt || print_warning "Error en requirements mínimo"
+    elif [ -f "requirements.txt" ]; then
+        print_status "Instalando dependencias críticas primero..."
+        # Instalar solo lo crítico
+        pip install --no-cache-dir Flask==3.1.0 gunicorn==23.0.0 psycopg2-binary==2.9.10 || print_warning "Error en dependencias críticas"
+        # Intentar el resto con timeout
+        timeout 300 pip install --no-cache-dir -r requirements.txt || print_warning "Algunas dependencias no se instalaron"
     else
-        print_warning "requirements.txt no encontrado"
+        print_warning "No se encontraron archivos de requirements"
     fi
+    
+    # Verificar que lo crítico esté instalado
+    python -c "import flask, gunicorn, psycopg2; print('✅ Dependencias críticas verificadas')" || print_error "Dependencias críticas faltantes"
     
     cd ..
 }
