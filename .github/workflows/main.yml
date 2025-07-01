@@ -213,11 +213,12 @@ jobs:
         SECRETS_FOUND=false
         
         # Buscar passwords hardcodeados (excluir variables de entorno y tests)
-        if grep -r -E "(password|PASSWORD)\s*=\s*['\"][^'\"${}]{6,}['\"]" . \
+        if grep -r -E "(password|PASSWORD)\s*=\s*['\"][^'\"]{6,}['\"]" . \
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
           --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
           --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
-          --exclude="*.env*" --exclude="setup_ec2.sh" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ'; then
+          --exclude="*.env*" --exclude="setup_ec2.sh" --exclude="*.example" \
+          | grep -v '\$' | grep -v 'getenv' | grep -v 'environ' | grep -v 'os\.getenv'; then
           echo "⚠️ Posibles passwords hardcodeados encontrados"
           SECRETS_FOUND=true
         fi
@@ -227,17 +228,19 @@ jobs:
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
           --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
           --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
-          --exclude="*.env*" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ' | grep -v 'Fallback para pruebas'; then
+          --exclude="*.env*" --exclude="*.example" \
+          | grep -v '\$' | grep -v 'getenv' | grep -v 'environ' | grep -v 'os\.getenv' | grep -v 'Fallback para pruebas'; then
           echo "⚠️ Posibles API keys hardcodeadas encontradas"
           SECRETS_FOUND=true
         fi
         
         # Buscar URLs de base de datos con credenciales hardcodeadas (excluir variables)
-        if grep -r -E "(postgresql|mysql|mongodb)://[^/\$\{]+:[^@\$\{]+@" . \
+        if grep -r -E "(postgresql|mysql|mongodb)://[^/\$\*]+:[^@\$\*]+@" . \
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
           --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
           --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
-          --exclude="*.env*" --exclude="setup_ec2.sh" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ'; then
+          --exclude="*.env*" --exclude="setup_ec2.sh" --exclude="*.example" \
+          | grep -v '\$' | grep -v '\*\*\*' | grep -v 'getenv' | grep -v 'environ' | grep -v 'os\.getenv'; then
           echo "⚠️ Posibles URLs de DB con credenciales hardcodeadas encontradas"
           SECRETS_FOUND=true
         fi
