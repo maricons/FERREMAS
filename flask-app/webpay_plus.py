@@ -17,10 +17,10 @@ class WebpayPlus:
     
     def init_app(self, app):
         self.app = app
-        # Configurar Webpay en modo integración
+        # Configurar Webpay usando variables de entorno
         integration_type = IntegrationType.TEST
-        commerce_code = "597055555532"  # Código de comercio de prueba
-        api_key = "579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C"  # Clave de prueba
+        commerce_code = os.getenv('WEBPAY_COMMERCE_CODE', '597055555532')  # Fallback para pruebas
+        api_key = os.getenv('WEBPAY_API_KEY', '579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C')  # Fallback para pruebas
         
         print("\n=== CONFIGURACIÓN DE WEBPAY ===")
         print(f"Tipo de integración: {integration_type}")

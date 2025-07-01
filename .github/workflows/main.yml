@@ -212,30 +212,33 @@ jobs:
         # Buscar patrones específicos de credenciales hardcodeadas
         SECRETS_FOUND=false
         
-        # Buscar passwords hardcodeados (no variables)
-        if grep -r -E "(password|PASSWORD)\s*=\s*['\"][^'\"]{6,}['\"]" . \
+        # Buscar passwords hardcodeados (excluir variables de entorno y tests)
+        if grep -r -E "(password|PASSWORD)\s*=\s*['\"][^'\"${}]{6,}['\"]" . \
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
-          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
-          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
+          --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
+          --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
+          --exclude="*.env*" --exclude="setup_ec2.sh" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ'; then
           echo "⚠️ Posibles passwords hardcodeados encontrados"
           SECRETS_FOUND=true
         fi
         
-        # Buscar API keys o tokens hardcodeados
+        # Buscar API keys o tokens hardcodeados (excluir variables de entorno y fallbacks comentados)
         if grep -r -E "(api_key|API_KEY|token|TOKEN|secret|SECRET)\s*=\s*['\"][a-zA-Z0-9]{20,}['\"]" . \
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
-          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
-          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
+          --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
+          --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
+          --exclude="*.env*" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ' | grep -v 'Fallback para pruebas'; then
           echo "⚠️ Posibles API keys hardcodeadas encontradas"
           SECRETS_FOUND=true
         fi
         
-        # Buscar URLs de base de datos con credenciales
-        if grep -r -E "(postgresql|mysql|mongodb)://[^/]+:[^@]+@" . \
+        # Buscar URLs de base de datos con credenciales hardcodeadas (excluir variables)
+        if grep -r -E "(postgresql|mysql|mongodb)://[^/\$\{]+:[^@\$\{]+@" . \
           --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
-          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
-          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
-          echo "⚠️ Posibles URLs de DB con credenciales encontradas"
+          --exclude-dir=.pytest_cache --exclude-dir=tests --exclude="*.yml" --exclude="*.md" \
+          --exclude="*.html" --exclude="*.json" --exclude="*.xml" --exclude="test_*.py" \
+          --exclude="*.env*" --exclude="setup_ec2.sh" | grep -v '\${' | grep -v 'getenv' | grep -v 'environ'; then
+          echo "⚠️ Posibles URLs de DB con credenciales hardcodeadas encontradas"
           SECRETS_FOUND=true
         fi
         

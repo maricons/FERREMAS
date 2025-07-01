@@ -49,11 +49,13 @@ echo "Fecha: $(date)"
 GITHUB_REPO="https://github.com/TU_USUARIO/FERREMAS.git"  # Cambiar por tu repo
 DB_NAME="ferremas_db"
 DB_USER="ferremas"
-DB_PASSWORD="ferremas123"
+DB_PASSWORD=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-20)  # Generar contraseña aleatoria
 PROJECT_DIR="/home/ubuntu/FERREMAS"
 
 print_warning "IMPORTANTE: Asegúrate de cambiar GITHUB_REPO por tu repositorio real"
 print_info "Repositorio configurado: $GITHUB_REPO"
+print_success "Contraseña de BD generada: $DB_PASSWORD"
+print_warning "IMPORTANTE: Guarda esta contraseña en un lugar seguro"
 
 # Solicitar confirmación
 read -p "¿Continuar con la configuración? (y/N): " -n 1 -r
