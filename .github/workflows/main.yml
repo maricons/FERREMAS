@@ -270,8 +270,8 @@ jobs:
         username: ${{ secrets.AWS_USERNAME }}
         key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
         port: 22
-        timeout: 300s
-        command_timeout: 120s
+        timeout: 600s
+        command_timeout: 300s
         script: |
           set -e  # Salir si cualquier comando falla
           
@@ -334,7 +334,9 @@ jobs:
           # Instalar/actualizar dependencias
           echo "📦 Instalando/actualizando dependencias..."
           if [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
+            echo "🔧 Instalando dependencias con optimizaciones..."
+            pip install --no-cache-dir --upgrade pip setuptools wheel
+            pip install --no-cache-dir -r requirements.txt --timeout 300
           else
             echo "⚠️ requirements.txt no encontrado"
           fi
