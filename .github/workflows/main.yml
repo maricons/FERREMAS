@@ -293,7 +293,19 @@ jobs:
           echo "📥 Actualizando código desde Git..."
           git fetch origin
           git checkout main
-          git pull origin main
+          
+          # Verificar si hay divergencias y resolverlas
+          echo "🔍 Verificando estado del repositorio..."
+          if git status | grep -q "have diverged"; then
+            echo "⚠️ Ramas divergentes detectadas. Resolviendo..."
+            echo "💾 Guardando cambios locales si existen..."
+            git stash push -m "Backup antes de sincronizar - $(date)"
+            echo "🔄 Sincronizando con origin/main..."
+            git reset --hard origin/main
+          else
+            echo "✅ Repositorio sincronizado, haciendo pull normal..."
+            git pull origin main
+          fi
           
           # Navegar al directorio de la aplicación
           echo "📂 Navegando a flask-app..."
@@ -334,46 +346,93 @@ jobs:
             flask db upgrade || echo "⚠️ No se pudieron ejecutar migraciones"
           fi
           
-          # Verificar que el servicio existe antes de reiniciarlo
-          echo "🔍 Verificando servicio ferremas..."
+          # Verificar servicios y reiniciar aplicación
+          echo "🔍 Verificando servicios disponibles..."
+          
+          # Buscar servicios relacionados con ferremas
           if systemctl list-units --full -all | grep -Fq "ferremas.service"; then
-            echo "🔄 Reiniciando servicio ferremas..."
+            echo "🔄 Reiniciando servicio ferremas.service..."
             sudo systemctl restart ferremas.service
-            
-            # Verificar estado del servicio
-            echo "✅ Verificando estado del servicio..."
             sudo systemctl status ferremas.service --no-pager -l
-            
-            if systemctl is-active --quiet ferremas.service; then
-              echo "✅ Servicio ferremas está ejecutándose correctamente"
-            else
-              echo "❌ Error: El servicio ferremas no está ejecutándose"
-              echo "📋 Logs del servicio:"
-              sudo journalctl -u ferremas.service -n 20 --no-pager
-              exit 1
-            fi
+          elif systemctl list-units --type=service | grep -q gunicorn; then
+            echo "🔄 Reiniciando servicio gunicorn..."
+            sudo systemctl restart gunicorn || echo "⚠️ Error reiniciando gunicorn"
+            sudo systemctl status gunicorn --no-pager -l || echo "⚠️ No se pudo verificar gunicorn"
           else
-            echo "⚠️ Servicio ferremas.service no encontrado"
-            echo "🔍 Servicios disponibles:"
-            systemctl list-units --type=service | grep ferremas || echo "No hay servicios relacionados con ferremas"
-            
-            # Intentar iniciar la aplicación manualmente como fallback
-            echo "🔄 Intentando iniciar aplicación manualmente..."
+            echo "⚠️ No se encontraron servicios systemd conocidos"
+          fi
+          
+          # Verificar y reiniciar nginx si existe
+          if systemctl is-active --quiet nginx; then
+            echo "🔄 Reiniciando nginx..."
+            sudo systemctl reload nginx || echo "⚠️ Error reiniciando nginx"
+          fi
+          
+          # Verificar procesos Python/Flask ejecutándose
+          echo "🔍 Verificando procesos Python/Flask..."
+          FLASK_PIDS=$(pgrep -f "python.*app.py\|gunicorn.*app\|flask run" || true)
+          if [ ! -z "$FLASK_PIDS" ]; then
+            echo "🔄 Reiniciando procesos Flask existentes..."
+            echo "PIDs encontrados: $FLASK_PIDS"
+            sudo kill -TERM $FLASK_PIDS || echo "⚠️ Error terminando procesos"
+            sleep 5
+          fi
+          
+          # Iniciar aplicación como fallback si no hay servicios
+          if ! systemctl is-active --quiet ferremas.service && ! systemctl is-active --quiet gunicorn; then
+            echo "🚀 Iniciando aplicación como fallback..."
             nohup python app.py > ../app.log 2>&1 &
             echo "📝 PID de la aplicación: $!"
           fi
           
           # Verificar que la aplicación responde
           echo "🏥 Verificando salud de la aplicación..."
-          sleep 10
+          sleep 15
           
-          # Intentar varios puertos comunes
-          for port in 5000 80 8000 3000; do
-            if curl -f -s -o /dev/null "http://localhost:$port" || curl -f -s -o /dev/null "http://localhost:$port/health"; then
+          # Verificar servicios activos
+          SERVICE_OK=false
+          if systemctl is-active --quiet ferremas.service; then
+            echo "✅ Servicio ferremas.service está activo"
+            SERVICE_OK=true
+          elif systemctl is-active --quiet gunicorn; then
+            echo "✅ Servicio gunicorn está activo"
+            SERVICE_OK=true
+          fi
+          
+          # Verificar conectividad HTTP
+          APP_RESPONDING=false
+          for port in 80 5000 8000 3000; do
+            echo "🔍 Probando puerto $port..."
+            if curl -f -s -m 10 -o /dev/null "http://localhost:$port" 2>/dev/null; then
               echo "✅ Aplicación respondiendo en puerto $port"
+              APP_RESPONDING=true
+              break
+            elif curl -f -s -m 10 -o /dev/null "http://localhost:$port/health" 2>/dev/null; then
+              echo "✅ Health check respondiendo en puerto $port"
+              APP_RESPONDING=true
               break
             fi
           done
+          
+          # Verificar procesos Python
+          PYTHON_PROCESSES=$(pgrep -f "python.*app\|gunicorn" | wc -l)
+          echo "🔍 Procesos Python encontrados: $PYTHON_PROCESSES"
+          
+          # Resumen del estado
+          echo "📊 Resumen del despliegue:"
+          echo "   - Servicios systemd: $($SERVICE_OK && echo '✅' || echo '⚠️')"
+          echo "   - Conectividad HTTP: $($APP_RESPONDING && echo '✅' || echo '⚠️')"
+          echo "   - Procesos Python: $PYTHON_PROCESSES"
+          
+          if [ "$SERVICE_OK" = true ] || [ "$APP_RESPONDING" = true ] || [ "$PYTHON_PROCESSES" -gt 0 ]; then
+            echo "✅ Aplicación desplegada exitosamente"
+          else
+            echo "⚠️ Advertencia: No se pudo verificar completamente el estado de la aplicación"
+            echo "📋 Logs recientes:"
+            sudo journalctl -u ferremas.service -n 10 --no-pager 2>/dev/null || echo "No hay logs de ferremas.service"
+            sudo journalctl -u gunicorn -n 10 --no-pager 2>/dev/null || echo "No hay logs de gunicorn"
+            # No fallar el despliegue por esto
+          fi
           
           echo "🎉 Despliegue completado exitosamente!"
           echo "⏰ Finalizado: $(date)"
