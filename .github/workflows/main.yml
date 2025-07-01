@@ -166,7 +166,7 @@ jobs:
 
     # Subir resultados de coverage
     - name: 📈 Upload coverage reports
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       if: always()
       with:
         file: ./coverage.xml
@@ -176,7 +176,7 @@ jobs:
 
     # Subir artefactos de test
     - name: 📋 Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
