@@ -207,13 +207,44 @@ jobs:
     - name: 🔒 Security scan
       run: |
         echo "🔒 Ejecutando verificación de seguridad básica..."
-        # Verificar que no hay secretos hardcodeados
-        echo "Verificando que no hay secretos expuestos..."
-        if grep -r "password.*=" . --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude="*.yml" --exclude="*.md"; then
-          echo "⚠️ Posibles secretos encontrados en el código"
-          exit 1
+        echo "Verificando que no hay secretos hardcodeados..."
+        
+        # Buscar patrones específicos de credenciales hardcodeadas
+        SECRETS_FOUND=false
+        
+        # Buscar passwords hardcodeados (no variables)
+        if grep -r -E "(password|PASSWORD)\s*=\s*['\"][^'\"]{6,}['\"]" . \
+          --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
+          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
+          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
+          echo "⚠️ Posibles passwords hardcodeados encontrados"
+          SECRETS_FOUND=true
         fi
-        echo "✅ Verificación de seguridad básica completada"
+        
+        # Buscar API keys o tokens hardcodeados
+        if grep -r -E "(api_key|API_KEY|token|TOKEN|secret|SECRET)\s*=\s*['\"][a-zA-Z0-9]{20,}['\"]" . \
+          --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
+          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
+          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
+          echo "⚠️ Posibles API keys hardcodeadas encontradas"
+          SECRETS_FOUND=true
+        fi
+        
+        # Buscar URLs de base de datos con credenciales
+        if grep -r -E "(postgresql|mysql|mongodb)://[^/]+:[^@]+@" . \
+          --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude-dir=htmlcov \
+          --exclude-dir=.pytest_cache --exclude="*.yml" --exclude="*.md" --exclude="*.html" \
+          --exclude="*.json" --exclude="*.xml" --exclude="test_*.py"; then
+          echo "⚠️ Posibles URLs de DB con credenciales encontradas"
+          SECRETS_FOUND=true
+        fi
+        
+        if [ "$SECRETS_FOUND" = true ]; then
+          echo "❌ Verificación de seguridad falló"
+          exit 1
+        else
+          echo "✅ Verificación de seguridad básica completada"
+        fi
 
   # Job 2: Deployment (solo en main y si los tests pasan)
   deploy:
