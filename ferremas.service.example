@@ -1,0 +1,96 @@
+# Archivo de ejemplo para servicio systemd de FERREMAS
+# Copiar a: /etc/systemd/system/ferremas.service
+
+[Unit]
+Description=FERREMAS - E-commerce Flask Application
+Documentation=https://github.com/TU_USUARIO/FERREMAS
+After=network.target postgresql.service redis.service
+Wants=postgresql.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/FERREMAS/flask-app
+Environment=PATH=/home/ubuntu/FERREMAS/venv/bin
+Environment=FLASK_APP=app.py
+Environment=FLASK_ENV=production
+Environment=PYTHONPATH=/home/ubuntu/FERREMAS/flask-app
+
+# Comando para iniciar la aplicación
+ExecStart=/home/ubuntu/FERREMAS/venv/bin/gunicorn --bind 0.0.0.0:5000 --workers 3 --timeout 120 app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Configuración de reinicio automático
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Configuración de logs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ferremas
+
+# Configuración de seguridad
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/home/ubuntu/FERREMAS
+ReadOnlyPaths=/home/ubuntu/FERREMAS/flask-app/static
+
+# Configuración de recursos
+LimitNOFILE=65536
+MemoryLimit=1G
+CPUQuota=200%
+
+# Configuración de red
+PrivateNetwork=no
+RestrictAddressFamilies=AF_INET AF_INET6
+
+# Variables de entorno de producción
+Environment=DATABASE_URL=postgresql://ferremas:PASSWORD@localhost:5432/ferremas_db
+Environment=REDIS_URL=redis://localhost:6379/0
+Environment=SECRET_KEY=CHANGE_THIS_IN_PRODUCTION
+Environment=MAIL_SERVER=smtp.gmail.com
+Environment=MAIL_PORT=587
+Environment=MAIL_USE_TLS=true
+Environment=WEBPAY_ENVIRONMENT=production
+
+# Healthcheck personalizado
+ExecStartPost=/bin/sleep 10
+ExecStartPost=/bin/bash -c 'curl -f http://localhost:5000/health || exit 1'
+
+[Install]
+WantedBy=multi-user.target
+
+# === INSTRUCCIONES DE USO ===
+#
+# 1. Copiar este archivo a /etc/systemd/system/ferremas.service
+#    sudo cp ferremas.service.example /etc/systemd/system/ferremas.service
+#
+# 2. Editar las variables de entorno según tu configuración
+#    sudo nano /etc/systemd/system/ferremas.service
+#
+# 3. Recargar systemd y habilitar servicio
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable ferremas.service
+#
+# 4. Iniciar servicio
+#    sudo systemctl start ferremas.service
+#
+# 5. Verificar estado
+#    sudo systemctl status ferremas.service
+#
+# 6. Ver logs
+#    sudo journalctl -u ferremas.service -f
+#
+# === COMANDOS ÚTILES ===
+#
+# Restart:     sudo systemctl restart ferremas.service
+# Stop:        sudo systemctl stop ferremas.service
+# Disable:     sudo systemctl disable ferremas.service
+# Logs:        sudo journalctl -u ferremas.service --since "1 hour ago"
+# Follow logs: sudo journalctl -u ferremas.service -f 

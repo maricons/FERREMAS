@@ -1,0 +1,376 @@
+name: CI/CD Pipeline - FERREMAS
+
+# Activación del workflow
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Permite ejecución manual
+
+# Variables de entorno globales
+env:
+  PYTHON_VERSION: 3.9
+  NODE_VERSION: 16
+
+jobs:
+  # Job 1: Testing y Quality Assurance
+  test:
+    name: 🧪 Tests & Quality Checks
+    runs-on: ubuntu-latest
+    
+    # Configuración de servicios para testing
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: ferremas123
+          POSTGRES_USER: ferremas
+          POSTGRES_DB: ferremas_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    # Checkout del código
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Configuración de Python con cache
+    - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          flask-app/requirements.txt
+
+    # Instalación de dependencias del sistema
+    - name: 📦 Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+
+    # Instalación de dependencias de Python
+    - name: 📚 Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock python-dotenv
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f flask-app/requirements.txt ]; then pip install -r flask-app/requirements.txt; fi
+
+    # Configuración de variables de entorno para testing
+    - name: ⚙️ Configure test environment
+      run: |
+        # Crear archivo de configuración para testing
+        cat > tests/.env << EOF
+        TESTING=true
+        FLASK_ENV=testing
+        DEBUG=false
+        
+        # Base de datos para testing
+        TEST_DATABASE_URL=postgresql://ferremas:ferremas123@localhost:5432/ferremas_test
+        DATABASE_URL=postgresql://ferremas:ferremas123@localhost:5432/ferremas_test
+        
+        # Configuración de Flask
+        SECRET_KEY=test_secret_key_for_ci_cd_only
+        WTF_CSRF_ENABLED=false
+        
+        # Configuración de Webpay - Sandbox
+        WEBPAY_COMMERCE_CODE=597055555532
+        WEBPAY_API_KEY=579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C
+        WEBPAY_ENVIRONMENT=sandbox
+        WEBPAY_TIMEOUT=30
+        PAYMENT_ENVIRONMENT=sandbox
+        
+        # API de monedas
+        CURRENCY_API_TIMEOUT=10
+        CURRENCY_API_URL=https://si3.bcentral.cl/SieteRestWS/SieteRestWS.ashx
+        
+        # Mocks para testing
+        MOCK_USD_RATE=850.50
+        MOCK_EUR_RATE=920.30
+        MOCK_UF_RATE=35500.00
+        MOCK_WEBPAY_TOKEN=ci_test_token_12345
+        MOCK_AUTH_CODE=123456
+        
+        # Configuración cloud-agnostic
+        CLOUD_PROVIDER=github-actions
+        MONITORING_ENABLED=false
+        METRICS_ENABLED=false
+        EOF
+
+    # Verificación de la configuración
+    - name: 🔍 Verify environment setup
+      run: |
+        echo "🔍 Verificando configuración del entorno..."
+        python --version
+        pip --version
+        
+        # Verificar conexión a PostgreSQL
+        PGPASSWORD=ferremas123 psql -h localhost -U ferremas -d ferremas_test -c "SELECT version();"
+        
+        # Verificar estructura del proyecto
+        ls -la
+        ls -la flask-app/ || echo "⚠️ Directorio flask-app no encontrado"
+        ls -la tests/ || echo "⚠️ Directorio tests no encontrado"
+
+    # Ejecutar tests básicos refactorizados
+    - name: 🧪 Run Basic Tests (Refactored)
+      run: |
+        echo "🧪 Ejecutando tests básicos refactorizados..."
+        cd ${{ github.workspace }}
+        python -m pytest tests/test_basic_refactored.py -v --tb=short --maxfail=3
+      env:
+        PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/flask-app
+
+    # Ejecutar tests de Webpay refactorizados
+    - name: 💳 Run Webpay Tests (Refactored)
+      run: |
+        echo "💳 Ejecutando tests de Webpay refactorizados..."
+        cd ${{ github.workspace }}
+        python -m pytest tests/test_webpay_refactored.py -v --tb=short --maxfail=3
+      env:
+        PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/flask-app
+
+    # Ejecutar tests de Currency Converter refactorizados
+    - name: 💱 Run Currency Converter Tests (Refactored)
+      run: |
+        echo "💱 Ejecutando tests del convertidor de monedas refactorizados..."
+        cd ${{ github.workspace }}
+        python -m pytest tests/test_currency_converter_refactored.py -v --tb=short --maxfail=3
+      env:
+        PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/flask-app
+
+    # Ejecutar todos los tests refactorizados con coverage
+    - name: 📊 Run All Refactored Tests with Coverage
+      run: |
+        echo "📊 Ejecutando todos los tests refactorizados con coverage..."
+        cd ${{ github.workspace }}
+        python -m pytest tests/test_basic_refactored.py tests/test_webpay_refactored.py tests/test_currency_converter_refactored.py \
+          --cov=flask-app \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          --junitxml=test-results.xml \
+          -v
+      env:
+        PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/flask-app
+
+    # Subir resultados de coverage
+    - name: 📈 Upload coverage reports
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    # Subir artefactos de test
+    - name: 📋 Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          test-results.xml
+          htmlcov/
+        retention-days: 30
+
+    # Verificación de seguridad básica
+    - name: 🔒 Security scan
+      run: |
+        echo "🔒 Ejecutando verificación de seguridad básica..."
+        # Verificar que no hay secretos hardcodeados
+        echo "Verificando que no hay secretos expuestos..."
+        if grep -r "password.*=" . --exclude-dir=.git --exclude-dir=venv --exclude-dir=__pycache__ --exclude="*.yml" --exclude="*.md"; then
+          echo "⚠️ Posibles secretos encontrados en el código"
+          exit 1
+        fi
+        echo "✅ Verificación de seguridad básica completada"
+
+  # Job 2: Deployment (solo en main y si los tests pasan)
+  deploy:
+    name: 🚀 Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🚀 Deploy to AWS EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.AWS_HOST }}
+        username: ${{ secrets.AWS_USERNAME }}
+        key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+        port: 22
+        timeout: 300s
+        command_timeout: 120s
+        script: |
+          set -e  # Salir si cualquier comando falla
+          
+          echo "🚀 Iniciando despliegue en AWS EC2..."
+          echo "📍 Host: ${{ secrets.AWS_HOST }}"
+          echo "👤 Usuario: ${{ secrets.AWS_USERNAME }}"
+          echo "⏰ Timestamp: $(date)"
+          
+          # Navegar al directorio del proyecto
+          echo "📂 Navegando al directorio del proyecto..."
+          cd /home/ubuntu/FERREMAS
+          
+          # Backup de la versión actual
+          echo "💾 Creando backup de la versión actual..."
+          if [ -d "backup" ]; then rm -rf backup; fi
+          cp -r flask-app backup || echo "⚠️ No se pudo crear backup"
+          
+          # Actualizar código desde Git
+          echo "📥 Actualizando código desde Git..."
+          git fetch origin
+          git checkout main
+          git pull origin main
+          
+          # Navegar al directorio de la aplicación
+          echo "📂 Navegando a flask-app..."
+          cd flask-app
+          
+          # Verificar estructura
+          echo "🔍 Verificando estructura del proyecto..."
+          ls -la
+          
+          # Activar entorno virtual si existe
+          if [ -d "../venv" ]; then
+            echo "🐍 Activando entorno virtual..."
+            source ../venv/bin/activate
+          else
+            echo "⚠️ Entorno virtual no encontrado, creando uno nuevo..."
+            cd ..
+            python3 -m venv venv
+            source venv/bin/activate
+            cd flask-app
+          fi
+          
+          # Actualizar pip
+          echo "⬆️ Actualizando pip..."
+          python -m pip install --upgrade pip
+          
+          # Instalar/actualizar dependencias
+          echo "📦 Instalando/actualizando dependencias..."
+          if [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          else
+            echo "⚠️ requirements.txt no encontrado"
+          fi
+          
+          # Ejecutar migraciones de base de datos si existen
+          echo "🗄️ Ejecutando migraciones de base de datos..."
+          if command -v flask &> /dev/null; then
+            export FLASK_APP=app.py
+            flask db upgrade || echo "⚠️ No se pudieron ejecutar migraciones"
+          fi
+          
+          # Verificar que el servicio existe antes de reiniciarlo
+          echo "🔍 Verificando servicio ferremas..."
+          if systemctl list-units --full -all | grep -Fq "ferremas.service"; then
+            echo "🔄 Reiniciando servicio ferremas..."
+            sudo systemctl restart ferremas.service
+            
+            # Verificar estado del servicio
+            echo "✅ Verificando estado del servicio..."
+            sudo systemctl status ferremas.service --no-pager -l
+            
+            if systemctl is-active --quiet ferremas.service; then
+              echo "✅ Servicio ferremas está ejecutándose correctamente"
+            else
+              echo "❌ Error: El servicio ferremas no está ejecutándose"
+              echo "📋 Logs del servicio:"
+              sudo journalctl -u ferremas.service -n 20 --no-pager
+              exit 1
+            fi
+          else
+            echo "⚠️ Servicio ferremas.service no encontrado"
+            echo "🔍 Servicios disponibles:"
+            systemctl list-units --type=service | grep ferremas || echo "No hay servicios relacionados con ferremas"
+            
+            # Intentar iniciar la aplicación manualmente como fallback
+            echo "🔄 Intentando iniciar aplicación manualmente..."
+            nohup python app.py > ../app.log 2>&1 &
+            echo "📝 PID de la aplicación: $!"
+          fi
+          
+          # Verificar que la aplicación responde
+          echo "🏥 Verificando salud de la aplicación..."
+          sleep 10
+          
+          # Intentar varios puertos comunes
+          for port in 5000 80 8000 3000; do
+            if curl -f -s -o /dev/null "http://localhost:$port" || curl -f -s -o /dev/null "http://localhost:$port/health"; then
+              echo "✅ Aplicación respondiendo en puerto $port"
+              break
+            fi
+          done
+          
+          echo "🎉 Despliegue completado exitosamente!"
+          echo "⏰ Finalizado: $(date)"
+
+    # Notificación de despliegue exitoso
+    - name: 📢 Deployment Success Notification
+      if: success()
+      run: |
+        echo "🎉 ¡Despliegue exitoso!"
+        echo "🌐 Aplicación desplegada en: http://${{ secrets.AWS_HOST }}"
+        echo "⏰ Timestamp: $(date)"
+        echo "🔗 Commit: ${{ github.sha }}"
+
+    # Notificación de error en despliegue
+    - name: 🚨 Deployment Failure Notification
+      if: failure()
+      run: |
+        echo "❌ Error en el despliegue"
+        echo "🔍 Revisa los logs para más detalles"
+        echo "💡 Puedes ejecutar el workflow manualmente desde GitHub Actions"
+
+  # Job 3: Notificaciones y cleanup
+  notify:
+    name: 📢 Notifications
+    runs-on: ubuntu-latest
+    needs: [test, deploy]
+    if: always()
+    
+    steps:
+    - name: 📊 Pipeline Summary
+      run: |
+        echo "## 📊 Resumen del Pipeline FERREMAS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Autor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✅ **Tests:** Exitoso" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Tests:** Fallido" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "🚀 **Despliegue:** Exitoso" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **URL:** http://${{ secrets.AWS_HOST }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Despliegue:** Fallido" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "⏭️ **Despliegue:** Omitido (no es rama main)" >> $GITHUB_STEP_SUMMARY
+        fi 

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Iniciar Sesion</title>
+</head>
+<body>
+    <h1>Iniciar Sesion</h1>
+    <form method="post" action="{{ url_for('login') }}">
+        <input type="email" name="email" required>
+        <input type="password" name="password" required>
+        <button type="submit">Iniciar Sesion</button>
+    </form>
+</body>
+</html> 
